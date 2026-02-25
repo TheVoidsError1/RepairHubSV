@@ -5,28 +5,51 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Handle password - if empty or undefined, don't include it in config
-// PostgreSQL will use default authentication method
-const dbPassword = process.env.DB_PASSWORD?.trim();
-const passwordConfig = dbPassword && dbPassword.length > 0 
-  ? { password: dbPassword } 
-  : {};
+// Support both DATABASE_URL/DB_API_BACKEND (connection string) and individual parameters
+// DB_API_BACKEND or DATABASE_URL is preferred for Neon and other cloud databases
+const databaseUrl = process.env.DB_API_BACKEND || process.env.DATABASE_URL;
 
-// Database connection configuration
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'Fixphone',
-  user: process.env.DB_USER || 'postgres',
-  ...passwordConfig, // Only include password if it's provided
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+let pool: pg.Pool;
+
+if (databaseUrl) {
+  // Use connection string (recommended for Neon)
+  const config: pg.PoolConfig = {
+    connectionString: databaseUrl,
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+
+  // Add SSL config for Neon
+  if (databaseUrl.includes('neon.tech') || databaseUrl.includes('sslmode=require')) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+
+  pool = new Pool(config);
+} else {
+  // Use individual parameters (fallback for local development)
+  const dbPassword = process.env.DB_PASSWORD?.trim();
+  const passwordConfig = dbPassword && dbPassword.length > 0 
+    ? { password: dbPassword } 
+    : {};
+
+  pool = new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'Fixphone',
+    user: process.env.DB_USER || 'postgres',
+    ...passwordConfig, // Only include password if it's provided
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
+}
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database: Fixphone');
+  const connectionString = process.env.DB_API_BACKEND || process.env.DATABASE_URL;
+  const dbName = process.env.DB_NAME || connectionString?.split('/').pop()?.split('?')[0] || 'Fixphone';
+  console.log(`✅ Connected to PostgreSQL database: ${dbName}`);
 });
 
 pool.on('error', (err) => {

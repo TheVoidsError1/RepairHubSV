@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -132,7 +132,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Upload image endpoint
-router.post('/upload-image', upload.single('image'), handleMulterError, async (req, res) => {
+router.post('/upload-image', upload.single('image'), handleMulterError, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -162,7 +162,7 @@ router.post('/upload-image', upload.single('image'), handleMulterError, async (r
 });
 
 // Create part
-router.post('/', upload.single('image'), handleMulterError, async (req, res) => {
+router.post('/', upload.single('image'), handleMulterError, async (req: Request, res: Response) => {
   try {
     const { 
       name,
@@ -266,7 +266,7 @@ router.post('/', upload.single('image'), handleMulterError, async (req, res) => 
       categoryTh: categoryTh?.trim() || null,
       location: location?.trim() || null,
       notes: notes?.trim() || null,
-      imageUrl: imageUrl || null,
+      imageUrl: imageUrl || undefined,
     });
 
     const savedPart = await partRepository.save(newPart);
@@ -296,7 +296,7 @@ router.post('/', upload.single('image'), handleMulterError, async (req, res) => 
 });
 
 // Update part
-router.put('/:id', upload.single('image'), handleMulterError, async (req, res) => {
+router.put('/:id', upload.single('image'), handleMulterError, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { 
@@ -395,7 +395,7 @@ router.put('/:id', upload.single('image'), handleMulterError, async (req, res) =
             fs.unlinkSync(oldImagePath);
           }
         }
-        part.imageUrl = null;
+        part.imageUrl = undefined;
       } else if (imageUrlFromBody !== part.imageUrl) {
         // If imageUrl is provided and different, update it
         part.imageUrl = imageUrlFromBody;
