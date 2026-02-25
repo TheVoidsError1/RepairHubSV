@@ -179,15 +179,22 @@ Backend ต้อง deploy แยกจาก Frontend เพราะ Vercel �
 4. เลือก repository
 5. ตั้งค่า:
    - **Name**: `repair-hub-backend`
-   - **Root Directory**: `backend`
+   - **Root Directory**: `backend` ⚠️ **สำคัญมาก**: ต้องเป็น `backend` ไม่ใช่ `.` หรือ root directory
    - **Environment**: `Node`
-   - **Build Command**: `npm install && npm run build` ⚠️ **สำคัญ**: ต้องใช้ `npm run build` ไม่ใช่ `npm build`
+   - **Build Command**: `npm install && npm run build` ⚠️ **สำคัญ**: ต้องใช้ `npm run build` ไม่ใช่ `npm build` และใช้ `&&` ไม่ใช่ `&`
    - **Start Command**: `npm start`
 
-   **หมายเหตุ**: โปรเจกต์มีไฟล์ `render.yaml` อยู่แล้วที่ root directory ซึ่งจะ auto-detect settings แต่ถ้า Render ยังใช้การตั้งค่าใน dashboard ให้ตรวจสอบว่า Build Command เป็น `npm install && npm run build` (มี `run` และใช้ `&&` ไม่ใช่ `&`)
+   **หมายเหตุ**: 
+   - โปรเจกต์มีไฟล์ `render.yaml` อยู่แล้วที่ root directory ซึ่งจะ auto-detect settings
+   - แต่ถ้า Render ยังใช้การตั้งค่าใน dashboard ให้ตรวจสอบว่า:
+     - **Root Directory** = `backend` (ไม่ใช่ `.` หรือ root)
+     - **Build Command** = `npm install && npm run build` (มี `run` และใช้ `&&` ไม่ใช่ `&`)
+   - ถ้า Root Directory ไม่ถูกต้อง จะเกิด error `Missing script: "start"` เพราะ Render จะรัน `npm start` จาก root directory แทน backend directory
 
 6. ตั้งค่า Environment Variables (เหมือนกับ Railway)
 7. Deploy
+
+**ดูคำแนะนำเพิ่มเติม**: ดูไฟล์ `FIX_RENDER_BUILD.md` สำหรับวิธีแก้ไขปัญหา build command และ root directory
 
 #### ตัวเลือกที่ 3: DigitalOcean App Platform
 
