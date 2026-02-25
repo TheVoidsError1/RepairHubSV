@@ -6,7 +6,22 @@ dotenv.config();
 
 // Support both DATABASE_URL/DB_API_BACKEND (connection string) and individual parameters
 // DB_API_BACKEND or DATABASE_URL is preferred for Neon and other cloud databases
-const databaseUrl = process.env.DB_API_BACKEND || process.env.DATABASE_URL;
+let databaseUrl = process.env.DB_API_BACKEND || process.env.DATABASE_URL;
+
+// Normalize SSL mode in connection string to fix pg v9.0.0 warning
+// Replace 'prefer', 'require', 'verify-ca' with 'verify-full' for future compatibility
+if (databaseUrl) {
+  // Replace deprecated SSL modes with verify-full
+  databaseUrl = databaseUrl.replace(
+    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/gi,
+    '$1sslmode=verify-full$3'
+  );
+  
+  // If no sslmode is specified and it's a Neon database, add sslmode=verify-full
+  if (databaseUrl.includes('neon.tech') && !databaseUrl.includes('sslmode=')) {
+    databaseUrl += (databaseUrl.includes('?') ? '&' : '?') + 'sslmode=verify-full';
+  }
+}
 
 let dataSourceConfig: any;
 
