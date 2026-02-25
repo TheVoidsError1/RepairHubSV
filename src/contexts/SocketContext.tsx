@@ -9,15 +9,30 @@ interface SocketContextValue {
 
 const SocketContext = createContext<SocketContextValue | null>(null);
 
-const SOCKET_URL = getApiBaseUrl();
-
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Get API base URL dynamically
+    const apiBaseUrl = getApiBaseUrl();
+    
+    // Skip socket connection if API URL is not configured
+    if (!apiBaseUrl || apiBaseUrl.trim() === '') {
+      console.warn('⚠️ Socket.IO: API base URL is not configured, skipping socket connection');
+      return;
+    }
+
+    // Validate URL format
+    try {
+      new URL(apiBaseUrl);
+    } catch (error) {
+      console.error('❌ Socket.IO: Invalid API base URL:', apiBaseUrl);
+      return;
+    }
+
     // สร้าง socket connection
-    const socketInstance = io(SOCKET_URL, {
+    const socketInstance = io(apiBaseUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,

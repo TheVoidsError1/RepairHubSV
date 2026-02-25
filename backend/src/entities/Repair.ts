@@ -38,7 +38,8 @@ export class Repair {
 
   @ManyToOne(() => Customer, (customer) => customer.repairs)
   @JoinColumn({ name: 'customerId' })
-  customer!: Customer;
+  // ใช้ any เพื่อเลี่ยง runtime circular metadata ระหว่าง Customer/Repair (TypeORM ยังรู้ type จาก callback)
+  customer!: any;
 
   @Column({ type: 'uuid', nullable: true })
   assignedToId?: string;

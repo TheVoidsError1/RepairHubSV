@@ -10,6 +10,15 @@ const databaseUrl = process.env.DB_API_BACKEND || process.env.DATABASE_URL;
 
 let dataSourceConfig: any;
 
+// Determine migrations path based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const migrationsPath = isProduction 
+  ? ['dist/migrations/**/*.js'] 
+  : ['src/migrations/**/*.ts'];
+const subscribersPath = isProduction 
+  ? ['dist/subscribers/**/*.js'] 
+  : ['src/subscribers/**/*.ts'];
+
 if (databaseUrl) {
   // Use connection string (recommended for Neon)
   dataSourceConfig = {
@@ -18,8 +27,8 @@ if (databaseUrl) {
     synchronize: process.env.NODE_ENV === 'development', // Auto sync schema in dev (use migrations in production)
     logging: process.env.NODE_ENV === 'development',
     entities: [Customer, Personnel, Part, Repair, WarrantyClaim, Transaction],
-    migrations: ['src/migrations/**/*.ts'],
-    subscribers: ['src/subscribers/**/*.ts'],
+    migrations: migrationsPath,
+    subscribers: subscribersPath,
     ssl: databaseUrl.includes('neon.tech') || databaseUrl.includes('sslmode=require') 
       ? { rejectUnauthorized: false } 
       : undefined,
@@ -41,8 +50,8 @@ if (databaseUrl) {
     synchronize: process.env.NODE_ENV === 'development', // Auto sync schema in dev (use migrations in production)
     logging: process.env.NODE_ENV === 'development',
     entities: [Customer, Personnel, Part, Repair, WarrantyClaim, Transaction],
-    migrations: ['src/migrations/**/*.ts'],
-    subscribers: ['src/subscribers/**/*.ts'],
+    migrations: migrationsPath,
+    subscribers: subscribersPath,
   };
 }
 

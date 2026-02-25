@@ -13,15 +13,21 @@ function trimTrailingSlash(url: string) {
 
 export function getApiBaseUrl(): string {
   const fromEnv = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "";
-  if (fromEnv.trim()) return trimTrailingSlash(fromEnv.trim());
+  if (fromEnv.trim()) {
+    const url = trimTrailingSlash(fromEnv.trim());
+    console.log('🔗 Using API Base URL from environment:', url);
+    return url;
+  }
 
   // Browser-only fallback
   if (typeof window !== "undefined") {
-    const { hostname, protocol } = window.location;
+    const { hostname, protocol, port } = window.location;
 
-    // Local development defaults
+    // Local development defaults (localhost, 127.0.0.1, or any local port)
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
-      return "http://localhost:3001";
+      const defaultUrl = "http://localhost:3001";
+      console.log('🔗 Using default API Base URL for localhost:', defaultUrl);
+      return defaultUrl;
     }
 
     // Check if it's a Vercel domain (vercel.app) or production domain
