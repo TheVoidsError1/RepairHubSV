@@ -37,6 +37,16 @@ export function makeOriginValidator(envValue: string | undefined): OriginValidat
   const nodeEnv = (process.env.NODE_ENV ?? "").toLowerCase();
   const isDevelopment = nodeEnv !== "production";
 
+  // Log CORS configuration on startup
+  if (isDevelopment) {
+    console.log('🔒 CORS: Development mode - allowing localhost:8080');
+  } else {
+    console.log(`🔒 CORS: Production mode - allowed origins: ${allowedOrigins.join(', ') || 'none (configure FRONTEND_URL)'}`);
+    if (allowAll) {
+      console.log('🔒 CORS: Allowing all origins (FRONTEND_URL=*)');
+    }
+  }
+
   return (origin: Origin, callback: CorsOriginCallback) => {
     // Allow non-browser clients (curl/postman) that don't send Origin
     if (!origin) return callback(null, true);
@@ -49,8 +59,12 @@ export function makeOriginValidator(envValue: string | undefined): OriginValidat
     // Reflect any origin (safe with credentials because it's not "*")
     if (allowAll) return callback(null, true);
 
-    if (allowedSet.has(origin)) return callback(null, origin);
+    if (allowedSet.has(origin)) {
+      return callback(null, origin);
+    }
 
+    // Log blocked origin for debugging
+    console.warn(`🚫 CORS blocked: ${origin} (not in allowed list: ${Array.from(allowedSet).join(', ') || 'none'})`);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   };
 }

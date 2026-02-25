@@ -26,7 +26,9 @@ const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-const corsOptions = buildExpressCorsOptions(process.env.FRONTEND_URL);
+const frontendUrl = process.env.FRONTEND_URL;
+console.log(`🌐 FRONTEND_URL: ${frontendUrl || '(not set - using defaults)'}`);
+const corsOptions = buildExpressCorsOptions(frontendUrl);
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());

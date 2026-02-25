@@ -70,6 +70,34 @@ npm run migration:revert
 - `GET /api/db/test` - Test database connection
 - `GET /api/db/query` - Example database query
 
+## Deployment on Render
+
+### Required Environment Variables
+
+เมื่อ deploy บน Render ต้องตั้งค่า Environment Variables ต่อไปนี้:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_API_BACKEND` | Neon database connection string | `postgresql://user:pass@ep-xxx.neon.tech/db?sslmode=verify-full` |
+| `NODE_ENV` | Environment mode | `production` |
+| `PORT` | Server port (Render จะกำหนดให้อัตโนมัติ) | - |
+| `FRONTEND_URL` | **สำคัญ!** URL ของ Frontend บน Vercel | `https://repair-hub-sv.vercel.app` |
+
+### ⚠️ สำคัญ: ตั้งค่า FRONTEND_URL
+
+**ต้องตั้งค่า `FRONTEND_URL` เพื่อแก้ปัญหา CORS:**
+
+1. ไปที่ Render Dashboard → Service → Environment
+2. เพิ่ม Environment Variable:
+   - **Key**: `FRONTEND_URL`
+   - **Value**: URL ของ Frontend บน Vercel (เช่น `https://repair-hub-sv.vercel.app`)
+3. **Manual Deploy** เพื่อให้การเปลี่ยนแปลงมีผล
+
+**หมายเหตุ:**
+- ถ้าไม่ตั้งค่า `FRONTEND_URL` Backend จะไม่รองรับ CORS จาก Frontend
+- สามารถตั้งค่าได้หลาย URLs โดยคั่นด้วย comma: `https://app1.vercel.app,https://app2.vercel.app`
+- หรือใช้ `*` เพื่ออนุญาตทุก origin (ไม่แนะนำสำหรับ production)
+
 ## Database Connection
 
 The backend uses **TypeORM** to connect to PostgreSQL database named `Fixphone`. 
