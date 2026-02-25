@@ -181,8 +181,10 @@ Backend ต้อง deploy แยกจาก Frontend เพราะ Vercel �
    - **Name**: `repair-hub-backend`
    - **Root Directory**: `backend`
    - **Environment**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install && npm run build` ⚠️ **สำคัญ**: ต้องใช้ `npm run build` ไม่ใช่ `npm build`
    - **Start Command**: `npm start`
+
+   **หมายเหตุ**: โปรเจกต์มีไฟล์ `render.yaml` อยู่แล้วที่ root directory ซึ่งจะ auto-detect settings แต่ถ้า Render ยังใช้การตั้งค่าใน dashboard ให้ตรวจสอบว่า Build Command เป็น `npm install && npm run build` (มี `run` และใช้ `&&` ไม่ใช่ `&`)
 
 6. ตั้งค่า Environment Variables (เหมือนกับ Railway)
 7. Deploy
