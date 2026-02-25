@@ -34,10 +34,17 @@ export function parseAllowedOrigins(envValue: string | undefined) {
 export function makeOriginValidator(envValue: string | undefined): OriginValidator {
   const { allowAll, allowedOrigins } = parseAllowedOrigins(envValue);
   const allowedSet = new Set(allowedOrigins);
+  const nodeEnv = (process.env.NODE_ENV ?? "").toLowerCase();
+  const isDevelopment = nodeEnv !== "production";
 
   return (origin: Origin, callback: CorsOriginCallback) => {
     // Allow non-browser clients (curl/postman) that don't send Origin
     if (!origin) return callback(null, true);
+
+    // In development mode, always allow localhost:8080
+    if (isDevelopment && origin === "http://localhost:8080") {
+      return callback(null, origin);
+    }
 
     // Reflect any origin (safe with credentials because it's not "*")
     if (allowAll) return callback(null, true);
@@ -56,3 +63,22 @@ export function buildExpressCorsOptions(envValue: string | undefined): CorsOptio
   };
 }
 
+// Helper function to get allowed origins as string/array for Socket.IO
+export function getAllowedOrigins(envValue: string | undefined): string | string[] {
+  const { allowAll, allowedOrigins } = parseAllowedOrigins(envValue);
+  
+  // In development, if allowAll is true, use wildcard for Socket.IO
+  // Note: Socket.IO v4+ supports function but it's safer to use string/array
+  const nodeEnv = (process.env.NODE_ENV ?? "").toLowerCase();
+  const isDevelopment = nodeEnv !== "production";
+  
+  if (isDevelopment) {
+    return '*'; // Allow all origins in development
+  }
+  
+  if (allowAll) {
+    return '*';
+  }
+  
+  return allowedOrigins.length > 0 ? allowedOrigins : ['http://localhost:8080'];
+}

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:dev": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d typeorm.config.ts",
