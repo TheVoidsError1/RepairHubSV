@@ -486,6 +486,7 @@ router.get('/chart/income-expenses', async (req, res) => {
 
     const repairRepository = AppDataSource.getRepository(Repair);
     const partRepository = AppDataSource.getRepository(Part);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
 
     // Generate month array
     const months: { month: string; monthTh: string; start: Date; end: Date }[] = [];
@@ -531,7 +532,7 @@ router.get('/chart/income-expenses', async (req, res) => {
           })
           .getMany();
 
-        const income = monthIncomeTransactions.reduce((sum, transaction) => {
+        const income = monthIncomeTransactions.reduce((sum: number, transaction: Transaction) => {
           const amount = Number(transaction.totalCost || 0);
           return sum + amount;
         }, 0);
