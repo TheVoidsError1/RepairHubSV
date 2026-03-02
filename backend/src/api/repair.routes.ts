@@ -658,6 +658,36 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // ส่ง LINE notification เมื่อสร้างใบแจ้งซ่อม (สำหรับลูกค้าที่มี LINE ID)
+    if (repairWithRelations?.customer?.lineIdRes) {
+      try {
+        const lineService = getLineNotificationService();
+        if (lineService) {
+          const customerData = repairWithRelations.customer;
+          const customerName = customerData.fullName || 
+                              `${customerData.firstName} ${customerData.lastName || ''}`.trim();
+          // ใช้ deviceModel หรือ deviceType เป็น fallback
+          const deviceType = repairWithRelations.deviceModel || repairWithRelations.deviceType || 'อุปกรณ์';
+          
+          // ส่งแจ้งเตือนว่าสร้างใบแจ้งซ่อมแล้ว และสถานะเป็น "กำลังซ่อม"
+          await lineService.notifyRepairStatusChange(
+            customerData.lineIdRes,
+            customerName,
+            repairNumber,
+            'in-progress', // สถานะกำลังซ่อม
+            deviceType,
+            repairWithRelations.problemSymptoms || repairWithRelations.problemDescription // Optional additional info
+          );
+          console.log(`[LINE] Notification sent for new repair ${repairNumber} (in-progress) to customer ${customerName}`);
+        }
+      } catch (lineError) {
+        // Don't fail the request if LINE notification fails
+        console.error('[LINE] Error sending notification for new repair:', lineError);
+      }
+    } else {
+      console.log(`[LINE] Customer does not have LINE User ID, skipping notification for repair ${repairNumber}`);
+    }
+
     // Emit socket event for real-time update
     emitRepairCreated(responseData);
 
@@ -1024,6 +1054,115 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to update repair',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Create transaction for repair that doesn't have one yet
+router.post('/:id/create-transaction', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const repairRepository = AppDataSource.getRepository(Repair);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
+    
+    // Find repair by ID or repairNumber
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = uuidRegex.test(id);
+    
+    let repair;
+    if (isUUID) {
+      repair = await repairRepository.findOne({ where: { id } });
+    } else {
+      repair = await repairRepository.findOne({ where: { repairNumber: id } });
+    }
+
+    if (!repair) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Repair not found',
+      });
+    }
+
+    // ตรวจสอบว่ามี transaction สำหรับ repair นี้อยู่แล้วหรือไม่
+    const existingTransaction = await transactionRepository.findOne({
+      where: {
+        descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+      },
+    });
+
+    if (existingTransaction) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Transaction already exists for this repair',
+        data: existingTransaction,
+      });
+    }
+
+    // คำนวณจำนวนเงินจาก partsCost หรือ totalCost
+    const partsCost = Number(repair.partsCost || 0);
+    const totalCost = Number(repair.totalCost || 0);
+    const transactionAmount = partsCost > 0 ? partsCost : totalCost;
+
+    if (transactionAmount <= 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cannot create transaction: repair has no cost',
+      });
+    }
+
+    // สร้าง transaction number
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    
+    // นับจำนวน transaction ของวันนี้
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    
+    const todayCount = await transactionRepository
+      .createQueryBuilder('transaction')
+      .where('transaction.createdAt >= :start', { start: todayStart })
+      .andWhere('transaction.createdAt < :end', { end: todayEnd })
+      .getCount();
+    
+    const sequenceNumber = String(todayCount + 1).padStart(3, '0');
+    const transactionNumber = `TXN-REP-${year}-${month}-${sequenceNumber}`;
+
+    // สร้าง transaction โดยใช้ createdAt ของ repair เพื่อให้วันที่ถูกต้อง
+    const repairCreatedAt = new Date(repair.createdAt);
+    const transaction = transactionRepository.create({
+      transactionNumber,
+      type: 'income',
+      totalCost: transactionAmount,
+      description: `Income from Parts - ${repair.repairNumber}`,
+      descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+    });
+
+    // บันทึก transaction และอัพเดท createdAt โดยใช้ raw query
+    const savedTransaction = await transactionRepository.save(transaction);
+    await AppDataSource.query(
+      'UPDATE transactions SET "createdAt" = $1 WHERE id = $2',
+      [repairCreatedAt, savedTransaction.id]
+    );
+
+    // ดึง transaction ที่อัพเดทแล้ว
+    const updatedTransaction = await transactionRepository.findOne({
+      where: { id: savedTransaction.id },
+    });
+
+    console.log(`[Repair] Created income transaction ${transactionNumber} for repair ${repair.repairNumber}`);
+
+    res.json({
+      status: 'success',
+      data: updatedTransaction,
+      message: 'Transaction created successfully',
+    });
+  } catch (error) {
+    console.error('Error creating transaction for repair:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to create transaction',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

@@ -759,42 +759,43 @@ router.get('/transactions', async (req, res) => {
 
     const transactions: any[] = [];
 
-    // Get completed repairs (income transactions)
+    // Get income transactions from Transaction table (created when repair is created)
     if (type === 'all' || type === 'income') {
-      const completedRepairs = await repairRepository
-        .createQueryBuilder('repair')
-        .where('repair.status = :status', { status: RepairStatus.COMPLETED })
-        .andWhere(
-          '(repair.completedDate BETWEEN :startDate AND :endDate OR (repair.completedDate IS NULL AND repair.updatedAt BETWEEN :startDate AND :endDate))',
-          { startDate, endDate }
-        )
-        .leftJoinAndSelect('repair.customer', 'customer')
-        .orderBy('repair.completedDate', 'DESC', 'NULLS LAST')
-        .addOrderBy('repair.updatedAt', 'DESC')
+      const incomeTransactions = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.type = :type', { type: 'income' })
+        .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+        .orderBy('transaction.createdAt', 'DESC')
         .take(Number(limit))
         .getMany();
 
-      console.log(`[Transactions] Found ${completedRepairs.length} completed repairs for income transactions`);
+      console.log(`[Transactions] Found ${incomeTransactions.length} income transactions`);
 
-      completedRepairs.forEach((repair) => {
-        const amount = Number(repair.repairSummaryPrice || repair.totalCost || 0);
+      incomeTransactions.forEach((transaction) => {
+        const amount = Number(transaction.totalCost || 0);
         if (amount > 0) {
-          // Use completedDate if available, otherwise use updatedAt
-          const transactionDate = repair.completedDate 
-            ? new Date(repair.completedDate)
-            : new Date(repair.updatedAt);
+          const transactionDate = new Date(transaction.createdAt);
+          
+          // Extract repair number from descriptionTh (format: "เงินเข้า - อะไหล่ - REP-2026-XXX")
+          let repairNumber = 'N/A';
+          if (transaction.descriptionTh) {
+            const match = transaction.descriptionTh.match(/REP-\d{4}-\d+/);
+            if (match) {
+              repairNumber = match[0];
+            }
+          }
           
           transactions.push({
-            id: `TXN-${repair.repairNumber || repair.id.substring(0, 8)}`,
+            id: transaction.transactionNumber,
             type: 'income',
-            description: `Repair Payment - ${repair.repairNumber || 'N/A'}`,
-            descriptionTh: `ชำระค่าซ่อม - ${repair.repairNumber || 'N/A'}`,
+            description: transaction.description || `Income from Parts - ${repairNumber}`,
+            descriptionTh: transaction.descriptionTh || `เงินเข้า - อะไหล่ - ${repairNumber}`,
             amount: parseFloat(amount.toFixed(2)),
             date: transactionDate.toISOString().split('T')[0],
             timestamp: transactionDate.getTime(), // Add timestamp for sorting
             method: 'Cash', // Default, you can add payment method to Repair entity later
             methodTh: 'เงินสด',
-            repairId: repair.id,
+            repairId: repairNumber, // Store repair number for reference
           });
         }
       });
