@@ -19,7 +19,6 @@ import Dashboard from "./pages/Dashboard";
 import Finance from "./pages/Finance";
 import ForgotPassword from "./pages/ForgotPassword";
 import Inventory from "./pages/Inventory";
-import LineManagement from "./pages/LineManagement";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import RepairBillManagement from "./pages/RepairBillManagement";
@@ -105,7 +104,6 @@ const App = () => (
                     <Route path="/finance" element={<RoleProtectedRoute><Finance /></RoleProtectedRoute>} />
                     <Route path="/settings" element={<RoleProtectedRoute><Settings /></RoleProtectedRoute>} />
                     <Route path="/admin/users" element={<RoleProtectedRoute><AdminUsers /></RoleProtectedRoute>} />
-                    <Route path="/system/line" element={<RoleProtectedRoute><LineManagement /></RoleProtectedRoute>} />
                     <Route path="/system/line/richmenu" element={<RoleProtectedRoute><RichMenu /></RoleProtectedRoute>} />
                     <Route path="/system/line/templates" element={<RoleProtectedRoute><LineTemplates /></RoleProtectedRoute>} />
                     <Route path="/admin" element={<RoleProtectedRoute><Navigate to="/system" replace /></RoleProtectedRoute>} />

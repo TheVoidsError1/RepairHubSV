@@ -10,7 +10,6 @@ import type { UserRole } from "@/types/user";
 export const ROUTES_OWNER_ONLY: string[] = [
   "/admin/users",           // จัดการผู้ใช้ - เฉพาะ owner
   "/system",                // จัดการระบบ - เฉพาะ owner
-  "/system/line",           // จัดการ LINE - เฉพาะ owner
   "/system/line/templates", // Template ข้อความ LINE - เฉพาะ owner
   "/system/line/richmenu", // Rich Menu - เฉพาะ owner
 ];

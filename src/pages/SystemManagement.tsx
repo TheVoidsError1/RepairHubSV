@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { ArrowRight, FileText, MessageSquare, UserCircle, Users, Lock } from "lucide-react";
+import { ArrowRight, FileText, UserCircle, Users, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ const SystemManagement = () => {
 
   const handleMenuClick = (item: typeof menuItems[0]) => {
     // ตรวจสอบว่าเป็น owner หรือไม่ สำหรับ menu items ที่ต้องเป็น owner
-    const ownerOnlyItems = ["users", "line", "line-templates"];
+    const ownerOnlyItems = ["users", "line-templates"];
     if (ownerOnlyItems.includes(item.id) && !isOwner) {
       toast.error(
         isTh 
@@ -42,22 +42,6 @@ const SystemManagement = () => {
       cardBorder: "hover:border-violet-400/50",
       cardShadow: "hover:shadow-[0_12px_40px_-8px_rgba(139,92,246,0.25)]",
       accent: "bg-violet-500",
-      ownerOnly: true,
-    },
-    {
-      id: "line",
-      titleTh: "จัดการLINE",
-      titleEn: "LINE Management",
-      descriptionTh: "จัดการ LINE Official Account",
-      descriptionEn: "Manage LINE Official Account",
-      icon: MessageSquare,
-      path: "/system/line",
-      gradient: "from-emerald-500 to-green-600",
-      iconBg: "bg-white/20",
-      iconColor: "text-white",
-      cardBorder: "hover:border-emerald-400/50",
-      cardShadow: "hover:shadow-[0_12px_40px_-8px_rgba(16,185,129,0.25)]",
-      accent: "bg-emerald-500",
       ownerOnly: true,
     },
     {

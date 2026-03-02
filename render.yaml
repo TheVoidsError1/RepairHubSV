@@ -10,4 +10,15 @@ services:
         value: production
       - key: PORT
         generateValue: true
+      # Database - ตั้งค่าใน Render Dashboard แทน (เพื่อความปลอดภัย)
+      # - key: DB_API_BACKEND
+      #   sync: false
+      # Frontend URL - ตั้งค่าใน Render Dashboard
+      # - key: FRONTEND_URL
+      #   sync: false
+      # LINE Bot - ตั้งค่าใน Render Dashboard
+      # - key: LINE_CHANNEL_ACCESS_TOKEN
+      #   sync: false
+      # - key: LINE_CHANNEL_SECRET
+      #   sync: false
     healthCheckPath: /health

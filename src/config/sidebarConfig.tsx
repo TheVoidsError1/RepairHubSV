@@ -284,13 +284,6 @@ export const SUBJECTS_CONFIG: Record<string, SidebarSubjectConfig> = {
             icon: Users,
           },
           {
-            id: "line",
-            href: "/system/line",
-            labelTh: "จัดการLINE",
-            labelEn: "LINE Management",
-            icon: MessageSquare,
-          },
-          {
             id: "line-templates",
             href: "/system/line/templates",
             labelTh: "Template ข้อความ LINE",
