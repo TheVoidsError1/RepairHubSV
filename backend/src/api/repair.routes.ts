@@ -1230,6 +1230,25 @@ router.delete('/:id', async (req, res) => {
       // Continue with repair deletion even if warranty claim deletion fails
     }
 
+    // ลบ Transaction ที่เชื่อมกับ Repair นี้ก่อน (transaction ที่สร้างจาก repair นี้)
+    try {
+      const transactionRepository = AppDataSource.getRepository(Transaction);
+      // ค้นหา transaction ที่มี repairNumber ใน descriptionTh
+      const relatedTransactions = await transactionRepository.find({
+        where: {
+          descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+        },
+      });
+      if (relatedTransactions.length > 0) {
+        console.log(`[Delete Repair] Found ${relatedTransactions.length} transaction(s) to delete`);
+        await transactionRepository.remove(relatedTransactions);
+        console.log(`[Delete Repair] Deleted ${relatedTransactions.length} transaction(s) associated with repair ${repair.repairNumber}`);
+      }
+    } catch (error) {
+      console.error('[Delete Repair] Error deleting transactions:', error);
+      // Continue with repair deletion even if transaction deletion fails
+    }
+
     // Restore stock for parts used in this repair
     const partIdsToRestore: string[] = [];
     if (repair.selectedPartIds) {
