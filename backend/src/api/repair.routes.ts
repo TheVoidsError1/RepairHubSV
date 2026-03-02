@@ -641,17 +641,26 @@ router.post('/', async (req, res) => {
         // ใช้ partsCost ถ้ามี ไม่เช่นนั้นใช้ totalCost
         const transactionAmount = calculatedPartsCost > 0 ? calculatedPartsCost : calculatedTotalCost;
         
+        // หา partId แรกถ้ามี selectedPartIds หรือ selectedPartId
+        let firstPartId: string | undefined = undefined;
+        if (selectedPartIds && Array.isArray(selectedPartIds) && selectedPartIds.length > 0) {
+          firstPartId = selectedPartIds[0];
+        } else if (selectedPartId) {
+          firstPartId = selectedPartId;
+        }
+        
         // สร้าง transaction
         const transaction = transactionRepository.create({
           transactionNumber,
           type: 'income',
+          partId: firstPartId, // บันทึก partId แรกถ้ามี
           totalCost: transactionAmount,
           description: `Income from Parts - ${repairNumber}`,
           descriptionTh: `เงินเข้า - อะไหล่ - ${repairNumber}`,
         });
         
         await transactionRepository.save(transaction);
-        console.log(`[Repair] Created income transaction ${transactionNumber} for repair ${repairNumber}`);
+        console.log(`[Repair] Created income transaction ${transactionNumber} for repair ${repairNumber}${firstPartId ? ` with partId: ${firstPartId}` : ''}`);
       } catch (error) {
         console.error('Error creating transaction for repair:', error);
         // Continue even if transaction creation fails
@@ -939,6 +948,35 @@ router.put('/:id', async (req, res) => {
         const transactionAmount = finalPartsCost > 0 ? finalPartsCost : finalTotalCost;
         
         if (transactionAmount > 0) {
+          // หา partId แรกจาก selectedPartIds ที่อัพเดทหรือที่มีอยู่
+          // ใช้ repair.selectedPartIds ที่อัพเดทแล้ว (อัพเดทที่บรรทัด 820) หรือ newSelectedPartIds
+          let firstPartId: string | undefined = undefined;
+          
+          // ใช้ repair.selectedPartIds ที่อัพเดทแล้วก่อน (เพราะมันถูกอัพเดทที่บรรทัด 820 แล้ว)
+          if (repair.selectedPartIds) {
+            try {
+              const parsed = JSON.parse(repair.selectedPartIds);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                firstPartId = parsed[0];
+              }
+            } catch (error) {
+              console.error('[Update Repair] Error parsing selectedPartIds for transaction:', error);
+            }
+          }
+          
+          // ถ้ายังไม่มี ให้ลองใช้ newSelectedPartIds หรือ newSelectedPartId
+          if (!firstPartId) {
+            if (newSelectedPartIds && Array.isArray(newSelectedPartIds) && newSelectedPartIds.length > 0) {
+              firstPartId = newSelectedPartIds[0];
+            } else if (newSelectedPartId) {
+              firstPartId = newSelectedPartId;
+            } else if (repair.selectedPartId) {
+              firstPartId = repair.selectedPartId;
+            }
+          }
+          
+          console.log(`[Update Repair] Found firstPartId for transaction: ${firstPartId || 'none'}`);
+          
           // หา Transaction ที่เชื่อมกับ repair นี้
           const existingTransaction = await transactionRepository.findOne({
             where: {
@@ -949,8 +987,10 @@ router.put('/:id', async (req, res) => {
           if (existingTransaction) {
             // อัพเดท Transaction ที่มีอยู่
             existingTransaction.totalCost = transactionAmount;
+            // อัพเดท partId เสมอ (ถ้ามี partId ใหม่ให้อัพเดท ถ้าไม่มีให้ลบออก)
+            existingTransaction.partId = firstPartId || undefined;
             await transactionRepository.save(existingTransaction);
-            console.log(`[Update Repair] Updated transaction ${existingTransaction.transactionNumber} for repair ${repair.repairNumber} - New amount: ฿${transactionAmount}`);
+            console.log(`[Update Repair] Updated transaction ${existingTransaction.transactionNumber} for repair ${repair.repairNumber} - New amount: ฿${transactionAmount}${firstPartId ? `, partId: ${firstPartId}` : ', partId: removed'}`);
           } else {
             // ถ้ายังไม่มี Transaction ให้สร้างใหม่
             const now = new Date();
@@ -975,6 +1015,7 @@ router.put('/:id', async (req, res) => {
             const newTransaction = transactionRepository.create({
               transactionNumber,
               type: 'income',
+              partId: firstPartId, // บันทึก partId แรกถ้ามี
               totalCost: transactionAmount,
               description: `Income from Parts - ${repair.repairNumber}`,
               descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
@@ -988,7 +1029,7 @@ router.put('/:id', async (req, res) => {
               [repairCreatedAt, savedTransaction.id]
             );
             
-            console.log(`[Update Repair] Created new transaction ${transactionNumber} for repair ${repair.repairNumber} - Amount: ฿${transactionAmount}`);
+            console.log(`[Update Repair] Created new transaction ${transactionNumber} for repair ${repair.repairNumber} - Amount: ฿${transactionAmount}${firstPartId ? `, partId: ${firstPartId}` : ''}`);
           }
         }
       } catch (error) {
@@ -1220,11 +1261,27 @@ router.post('/:id/create-transaction', async (req, res) => {
     const sequenceNumber = String(todayCount + 1).padStart(3, '0');
     const transactionNumber = `TXN-REP-${year}-${month}-${sequenceNumber}`;
 
+    // หา partId แรกจาก selectedPartIds หรือ selectedPartId
+    let firstPartId: string | undefined = undefined;
+    if (repair.selectedPartIds) {
+      try {
+        const parsed = JSON.parse(repair.selectedPartIds);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          firstPartId = parsed[0];
+        }
+      } catch (error) {
+        console.error('[Create Transaction] Error parsing selectedPartIds:', error);
+      }
+    } else if (repair.selectedPartId) {
+      firstPartId = repair.selectedPartId;
+    }
+    
     // สร้าง transaction โดยใช้ createdAt ของ repair เพื่อให้วันที่ถูกต้อง
     const repairCreatedAt = new Date(repair.createdAt);
     const transaction = transactionRepository.create({
       transactionNumber,
       type: 'income',
+      partId: firstPartId, // บันทึก partId แรกถ้ามี
       totalCost: transactionAmount,
       description: `Income from Parts - ${repair.repairNumber}`,
       descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
