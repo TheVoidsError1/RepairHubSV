@@ -1177,7 +1177,16 @@ router.delete('/:id', async (req, res) => {
     
     console.log(`[Delete Repair] Attempting to delete repair with id: ${id}`);
     
-    const repair = await repairRepository.findOne({ where: { id } });
+    // Find repair by ID or repairNumber
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = uuidRegex.test(id);
+    
+    let repair;
+    if (isUUID) {
+      repair = await repairRepository.findOne({ where: { id } });
+    } else {
+      repair = await repairRepository.findOne({ where: { repairNumber: id } });
+    }
 
     if (!repair) {
       console.log(`[Delete Repair] Repair not found: ${id}`);
