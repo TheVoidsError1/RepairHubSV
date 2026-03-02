@@ -5,6 +5,7 @@ import { emitRepairCreated, emitRepairDeleted, emitRepairUpdate, emitWarrantyCre
 import { Customer } from '../entities/Customer.js';
 import { Part } from '../entities/Part.js';
 import { Repair, RepairStatus, ServiceType } from '../entities/Repair.js';
+import { Transaction } from '../entities/Transaction.js';
 import { WarrantyClaim, WarrantyClaimStatus } from '../entities/WarrantyClaim.js';
 import { getLineNotificationService } from '../services/line-notification.service.js';
 
@@ -613,6 +614,49 @@ router.post('/', async (req, res) => {
       ...repairWithRelations,
       selectedParts: selectedParts || (repairWithRelations?.selectedPart ? [repairWithRelations.selectedPart] : null),
     };
+
+    // สร้างธุรกรรม (income) ทันทีเมื่อสร้างใบแจ้งซ่อม
+    if (calculatedPartsCost > 0 || calculatedTotalCost > 0) {
+      try {
+        const transactionRepository = AppDataSource.getRepository(Transaction);
+        
+        // สร้าง transaction number
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        
+        // นับจำนวน transaction ของวันนี้
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        
+        const todayCount = await transactionRepository
+          .createQueryBuilder('transaction')
+          .where('transaction.createdAt >= :start', { start: todayStart })
+          .andWhere('transaction.createdAt < :end', { end: todayEnd })
+          .getCount();
+        
+        const sequenceNumber = String(todayCount + 1).padStart(3, '0');
+        const transactionNumber = `TXN-REP-${year}-${month}-${sequenceNumber}`;
+        
+        // ใช้ partsCost ถ้ามี ไม่เช่นนั้นใช้ totalCost
+        const transactionAmount = calculatedPartsCost > 0 ? calculatedPartsCost : calculatedTotalCost;
+        
+        // สร้าง transaction
+        const transaction = transactionRepository.create({
+          transactionNumber,
+          type: 'income',
+          totalCost: transactionAmount,
+          description: `Income from Parts - ${repairNumber}`,
+          descriptionTh: `เงินเข้า - อะไหล่ - ${repairNumber}`,
+        });
+        
+        await transactionRepository.save(transaction);
+        console.log(`[Repair] Created income transaction ${transactionNumber} for repair ${repairNumber}`);
+      } catch (error) {
+        console.error('Error creating transaction for repair:', error);
+        // Continue even if transaction creation fails
+      }
+    }
 
     // Emit socket event for real-time update
     emitRepairCreated(responseData);

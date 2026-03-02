@@ -17,7 +17,7 @@ import {
     getTodayIsoDate,
     roundTimeTo30Min,
 } from "@/types/repairOrder";
-import { ArrowLeft, Download, Printer, Save, Share2 } from "lucide-react";
+import { ArrowLeft, Download, Printer, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -65,7 +65,6 @@ const RepairReceipt = () => {
   const [selectedPart, setSelectedPart] = useState<{ partNumber?: string; name?: string; nameTh?: string; price?: number } | null>(null);
   const [selectedParts, setSelectedParts] = useState<Array<{ partNumber?: string; name?: string; nameTh?: string; price?: number }>>([]);
   const [additionalParts, setAdditionalParts] = useState<Array<{ name: string; nameTh?: string; price: number }>>([]);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSendingToLine, setIsSendingToLine] = useState(false);
   /** ข้อมูลใบเสร็จที่แก้ไขได้ — sync จาก receiptData เมื่อโหลด/เปลี่ยนงานซ่อม */
   const [editableReceipt, setEditableReceipt] = useState<ReceiptData | null>(null);
@@ -469,82 +468,6 @@ const RepairReceipt = () => {
     }
   };
 
-  const handleSaveBill = async () => {
-    if (!dataFromNav?.repairId) {
-      toast({
-        title: language === "th" ? "เกิดข้อผิดพลาด" : "Error",
-        description: language === "th" ? "ไม่พบข้อมูลงานซ่อม" : "Repair data not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const dataToSave = displayReceiptData ?? receiptData;
-    if (!dataToSave) {
-      toast({
-        title: language === "th" ? "เกิดข้อผิดพลาด" : "Error",
-        description: language === "th" ? "ไม่พบข้อมูลใบเสร็จ" : "Receipt data not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // คำนวณค่าใช้จ่ายจากใบเสร็จ (ใช้ข้อมูลที่แก้ไขแล้วถ้ามี)
-      const partsCost = dataToSave.subtotal;
-      // laborCost = ค่าแรง (ถ้าไม่มีให้ใช้ 0)
-      const laborCost = 0; // ถ้าไม่มีค่าแรงแยก ให้ใช้ 0 หรือคำนวณจาก totalCost - partsCost
-      // totalCost = ราคารวม (grandTotal)
-      const totalCost = dataToSave.grandTotal;
-
-      // อัพเดท repair status เป็น completed และบันทึกข้อมูลบิล
-      const updateData: any = {
-        status: "completed",
-        completedDate: new Date().toISOString().split('T')[0], // วันที่ปัจจุบันในรูปแบบ YYYY-MM-DD
-        totalCost: totalCost,
-        partsCost: partsCost,
-        laborCost: laborCost,
-      };
-
-      // อัพเดท repairSummaryPrice ถ้ามี
-      if (effectiveData?.repairSummaryPrice) {
-        updateData.repairSummaryPrice = parseFloat(String(effectiveData.repairSummaryPrice).replace(/,/g, "")) || totalCost;
-      }
-
-      const response = await apiClient.updateRepair(dataFromNav.repairId, updateData);
-
-      if (response.status === 'success') {
-        toast({
-          title: language === "th" ? "บันทึกบิลสำเร็จ" : "Bill saved successfully",
-          description: language === "th" 
-            ? `บันทึกบิลสำหรับงานซ่อม ${dataFromNav.repairId} เรียบร้อยแล้ว`
-            : `Bill saved for repair ${dataFromNav.repairId}`,
-        });
-
-        // Refresh repairs list
-        await refreshRepairs();
-
-        // Navigate back to bill list
-        setTimeout(() => {
-          navigate("/repairs/bill/management");
-        }, 1000);
-      } else {
-        throw new Error(response.message || 'Failed to save bill');
-      }
-    } catch (error) {
-      console.error('Error saving bill:', error);
-      toast({
-        title: language === "th" ? "เกิดข้อผิดพลาด" : "Error",
-        description: error instanceof Error 
-          ? error.message 
-          : (language === "th" ? "ไม่สามารถบันทึกบิลได้" : "Failed to save bill"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const effectiveData: RepairOrderData | null = (() => {
     if (!dataFromNav) return null;
@@ -653,16 +576,6 @@ const RepairReceipt = () => {
             {language === "th" ? "กลับรายการ" : "Back to list"}
           </Button>
           <div className="flex gap-2">
-            <Button 
-              onClick={handleSaveBill} 
-              className="gap-2 w-fit"
-              disabled={isSaving}
-            >
-              <Save className="w-4 h-4" />
-              {isSaving 
-                ? (language === "th" ? "กำลังบันทึก..." : "Saving...") 
-                : (language === "th" ? "บันทึกบิล" : "Save Bill")}
-            </Button>
             <Button
               onClick={handleDownloadPDF}
               variant="outline"

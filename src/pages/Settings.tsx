@@ -9,13 +9,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiClient } from "@/lib/api";
 import {
-    Bell,
     Globe,
     Lock,
     Shield,
@@ -26,13 +24,6 @@ import { toast } from "sonner";
 const Settings = () => {
   const { t, language, setLanguage } = useLanguage();
   const { currentUser, updateUser } = useAuth();
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    lowStock: true,
-    newRepair: true,
-    warrantyExpiry: false,
-  });
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -104,14 +95,10 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="language" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="language" className="gap-2">
             <Globe className="w-4 h-4" />
             <span className="hidden sm:inline">{t("language")}</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="w-4 h-4" />
-            <span className="hidden sm:inline">{t("notifications")}</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="gap-2">
             <Shield className="w-4 h-4" />
@@ -141,85 +128,6 @@ const Settings = () => {
                     <SelectItem value="th">{t("thai")}</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Notifications Tab */}
-        <TabsContent value="notifications" className="space-y-6">
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              {t("notificationPreferences")}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              {t("configureNotifications")}
-            </p>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{t("emailNotifications")}</p>
-                  <p className="text-sm text-muted-foreground">{t("receiveViaEmail")}</p>
-                </div>
-                <Switch
-                  checked={notifications.email}
-                  onCheckedChange={(checked) =>
-                    setNotifications({ ...notifications, email: checked })
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{t("pushNotifications")}</p>
-                  <p className="text-sm text-muted-foreground">{t("receivePushNotifications")}</p>
-                </div>
-                <Switch
-                  checked={notifications.push}
-                  onCheckedChange={(checked) =>
-                    setNotifications({ ...notifications, push: checked })
-                  }
-                />
-              </div>
-              <div className="border-t border-border pt-6">
-                <p className="font-medium text-foreground mb-4">{t("notificationTypes")}</p>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-foreground">{t("lowStockAlertsNotif")}</p>
-                      <p className="text-xs text-muted-foreground">{t("whenInventoryFallsBelow")}</p>
-                    </div>
-                    <Switch
-                      checked={notifications.lowStock}
-                      onCheckedChange={(checked) =>
-                        setNotifications({ ...notifications, lowStock: checked })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-foreground">{t("newRepairOrders")}</p>
-                      <p className="text-xs text-muted-foreground">{t("whenNewRepairCreated")}</p>
-                    </div>
-                    <Switch
-                      checked={notifications.newRepair}
-                      onCheckedChange={(checked) =>
-                        setNotifications({ ...notifications, newRepair: checked })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-foreground">{t("warrantyExpiry")}</p>
-                      <p className="text-xs text-muted-foreground">{t("beforeWarrantyEnds")}</p>
-                    </div>
-                    <Switch
-                      checked={notifications.warrantyExpiry}
-                      onCheckedChange={(checked) =>
-                        setNotifications({ ...notifications, warrantyExpiry: checked })
-                      }
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           </div>
