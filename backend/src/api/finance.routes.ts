@@ -52,8 +52,22 @@ router.get('/summary', async (req, res) => {
 
     const repairRepository = AppDataSource.getRepository(Repair);
     const partRepository = AppDataSource.getRepository(Part);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
 
-    // Get completed repairs within date range
+    // Calculate total income from income transactions (created when repair is created)
+    // This ensures all income is counted regardless of repair status
+    const incomeTransactions = await transactionRepository
+      .createQueryBuilder('transaction')
+      .where('transaction.type = :type', { type: 'income' })
+      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .getMany();
+
+    const totalIncome = incomeTransactions.reduce((sum, transaction) => {
+      const amount = Number(transaction.totalCost || 0);
+      return sum + amount;
+    }, 0);
+
+    // Get completed repairs within date range (for calculating parts cost and other metrics)
     // Use completedDate if available, otherwise use updatedAt when status changed to COMPLETED
     const completedRepairs = await repairRepository
       .createQueryBuilder('repair')
@@ -64,13 +78,6 @@ router.get('/summary', async (req, res) => {
       )
       .leftJoinAndSelect('repair.customer', 'customer')
       .getMany();
-
-    // Calculate total income from completed repairs
-    // Use repairSummaryPrice if available, otherwise use totalCost
-    const totalIncome = completedRepairs.reduce((sum, repair) => {
-      const income = repair.repairSummaryPrice || repair.totalCost || 0;
-      return sum + Number(income);
-    }, 0);
 
     // Get all parts used in repairs (from selectedPartIds)
     const allPartIds: string[] = [];
@@ -298,19 +305,19 @@ router.get('/summary', async (req, res) => {
     previousStartDate.setDate(previousStartDate.getDate() - periodDays);
     const previousEndDate = new Date(startDate);
 
-    // Get previous period repairs
-    const previousRepairs = await repairRepository
-      .createQueryBuilder('repair')
-      .where('repair.status = :status', { status: RepairStatus.COMPLETED })
-      .andWhere(
-        '(repair.completedDate BETWEEN :startDate AND :endDate OR (repair.completedDate IS NULL AND repair.updatedAt BETWEEN :startDate AND :endDate))',
-        { startDate: previousStartDate, endDate: previousEndDate }
-      )
+    // Get previous period income from transactions
+    const previousIncomeTransactions = await transactionRepository
+      .createQueryBuilder('transaction')
+      .where('transaction.type = :type', { type: 'income' })
+      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { 
+        startDate: previousStartDate, 
+        endDate: previousEndDate 
+      })
       .getMany();
 
-    const previousIncome = previousRepairs.reduce((sum, repair) => {
-      const income = repair.repairSummaryPrice || repair.totalCost || 0;
-      return sum + Number(income);
+    const previousIncome = previousIncomeTransactions.reduce((sum, transaction) => {
+      const amount = Number(transaction.totalCost || 0);
+      return sum + amount;
     }, 0);
 
     // คำนวณค่าใช้จ่ายก่อนหน้าจากธุรกรรมล่าสุด (เอาธุรกรรมที่ type === 'expense')
@@ -514,10 +521,19 @@ router.get('/chart/income-expenses', async (req, res) => {
           )
           .getMany();
 
-        // Calculate income
-        const income = repairs.reduce((sum, repair) => {
-          const repairIncome = repair.repairSummaryPrice || repair.totalCost || 0;
-          return sum + Number(repairIncome);
+        // Calculate income from transactions
+        const monthIncomeTransactions = await transactionRepository
+          .createQueryBuilder('transaction')
+          .where('transaction.type = :type', { type: 'income' })
+          .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { 
+            startDate: month.start, 
+            endDate: month.end 
+          })
+          .getMany();
+
+        const income = monthIncomeTransactions.reduce((sum, transaction) => {
+          const amount = Number(transaction.totalCost || 0);
+          return sum + amount;
         }, 0);
 
         // คำนวณค่าใช้จ่ายรายเดือน (ต้นทุนจริงของอะไหล่ + ค่าแรง)
@@ -1074,6 +1090,7 @@ router.get('/chart/weekly', async (req, res) => {
   try {
     const repairRepository = AppDataSource.getRepository(Repair);
     const partRepository = AppDataSource.getRepository(Part);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
 
     // คำนวณวันเริ่มต้นและสิ้นสุดของสัปดาห์นี้ (วันจันทร์ - วันอาทิตย์)
     const today = new Date();
@@ -1122,10 +1139,19 @@ router.get('/chart/weekly', async (req, res) => {
           )
           .getMany();
 
-        // คำนวณรายได้
-        const income = repairs.reduce((sum, repair) => {
-          const repairIncome = repair.repairSummaryPrice || repair.totalCost || 0;
-          return sum + Number(repairIncome);
+        // คำนวณรายได้จาก transactions
+        const dayIncomeTransactions = await transactionRepository
+          .createQueryBuilder('transaction')
+          .where('transaction.type = :type', { type: 'income' })
+          .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { 
+            startDate: day.start, 
+            endDate: day.end 
+          })
+          .getMany();
+
+        const income = dayIncomeTransactions.reduce((sum, transaction) => {
+          const amount = Number(transaction.totalCost || 0);
+          return sum + amount;
         }, 0);
 
         // คำนวณรายจ่าย (ต้นทุนจริงของอะไหล่ + ค่าแรง)
@@ -1246,6 +1272,7 @@ router.get('/chart/daily', async (req, res) => {
   try {
     const repairRepository = AppDataSource.getRepository(Repair);
     const partRepository = AppDataSource.getRepository(Part);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
 
     // คำนวณวันเริ่มต้นและสิ้นสุดของสัปดาห์นี้ (7 วันล่าสุด)
     const today = new Date();
@@ -1289,10 +1316,19 @@ router.get('/chart/daily', async (req, res) => {
           )
           .getMany();
 
-        // คำนวณรายได้
-        const income = repairs.reduce((sum, repair) => {
-          const repairIncome = repair.repairSummaryPrice || repair.totalCost || 0;
-          return sum + Number(repairIncome);
+        // คำนวณรายได้จาก transactions
+        const dayIncomeTransactions = await transactionRepository
+          .createQueryBuilder('transaction')
+          .where('transaction.type = :type', { type: 'income' })
+          .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', { 
+            startDate: day.start, 
+            endDate: day.end 
+          })
+          .getMany();
+
+        const income = dayIncomeTransactions.reduce((sum, transaction) => {
+          const amount = Number(transaction.totalCost || 0);
+          return sum + amount;
         }, 0);
 
         // คำนวณรายจ่าย (ต้นทุนจริงของอะไหล่ + ค่าแรง)

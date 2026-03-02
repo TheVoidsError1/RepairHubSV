@@ -93,6 +93,7 @@ const Finance = () => {
     date: string;
     method: string;
     methodTh: string;
+    repairId?: string; // Repair number for income transactions
   }>>([]);
 
   const [transactionTab, setTransactionTab] = useState("all");
@@ -206,14 +207,25 @@ const Finance = () => {
   console.log('[Finance] Transaction tab:', transactionTab);
 
   // Handle viewing repair details
-  const handleViewRepairDetails = async (transactionId: string) => {
-    // Extract repair ID from transaction ID (e.g., TXN-REP-2026-009 -> REP-2026-009)
-    const repairNumber = transactionId.replace('TXN-', '');
-    
+  const handleViewRepairDetails = async (transactionId: string, repairId?: string) => {
     setLoadingRepairDetails(true);
     setRepairDetailsOpen(true);
     
     try {
+      let repairNumber = repairId;
+      
+      // ถ้าไม่มี repairId ให้ลอง extract จาก transaction ID (fallback)
+      if (!repairNumber) {
+        // Extract repair ID from transaction ID (e.g., TXN-REP-2026-009 -> REP-2026-009)
+        repairNumber = transactionId.replace('TXN-REP-', 'REP-');
+      }
+      
+      if (!repairNumber || repairNumber === 'N/A') {
+        console.log('Repair number not found in transaction');
+        setSelectedRepair(null);
+        return;
+      }
+      
       const response = await apiClient.getRepairs(1, 1000); // Get all repairs
       const repair = response.data.find((r: any) => r.repairNumber === repairNumber);
       
@@ -753,7 +765,7 @@ const Finance = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="gap-1"
-                                onClick={() => handleViewRepairDetails(txn.id)}
+                                onClick={() => handleViewRepairDetails(txn.id, (txn as any).repairId)}
                               >
                                 <Eye className="w-4 h-4" />
                                 {language === "th" ? "ดู" : "View"}
@@ -851,7 +863,7 @@ const Finance = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="gap-1"
-                                onClick={() => handleViewRepairDetails(txn.id)}
+                                onClick={() => handleViewRepairDetails(txn.id, (txn as any).repairId)}
                               >
                                 <Eye className="w-4 h-4" />
                                 {language === "th" ? "ดู" : "View"}
