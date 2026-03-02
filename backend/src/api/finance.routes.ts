@@ -1011,7 +1011,7 @@ router.get('/transactions', async (req, res) => {
 // Get today's revenue
 router.get('/today', async (req, res) => {
   try {
-    const repairRepository = AppDataSource.getRepository(Repair);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
 
     // ตั้งเวลาวันนี้ (00:00:00 - 23:59:59)
     const today = new Date();
@@ -1020,20 +1020,20 @@ router.get('/today', async (req, res) => {
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
 
-    // ดึงงานซ่อมที่เสร็จแล้ววันนี้
-    const todayRepairs = await repairRepository
-      .createQueryBuilder('repair')
-      .where('repair.status = :status', { status: RepairStatus.COMPLETED })
-      .andWhere(
-        '(repair.completedDate BETWEEN :startDate AND :endDate OR (repair.completedDate IS NULL AND repair.updatedAt BETWEEN :startDate AND :endDate))',
-        { startDate: startOfToday, endDate: endOfToday }
-      )
+    // ดึง Transaction ที่ type='income' และ createdAt เป็นวันนี้
+    const todayIncomeTransactions = await transactionRepository
+      .createQueryBuilder('transaction')
+      .where('transaction.type = :type', { type: 'income' })
+      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: startOfToday,
+        endDate: endOfToday,
+      })
       .getMany();
 
-    // คำนวณรายได้วันนี้
-    const todayRevenue = todayRepairs.reduce((sum, repair) => {
-      const income = repair.repairSummaryPrice || repair.totalCost || 0;
-      return sum + Number(income);
+    // คำนวณรายได้วันนี้จาก Transaction
+    const todayRevenue = todayIncomeTransactions.reduce((sum, transaction) => {
+      const amount = Number(transaction.totalCost || 0);
+      return sum + amount;
     }, 0);
 
     // ตั้งเวลาวันเมื่อวาน (00:00:00 - 23:59:59)
@@ -1044,20 +1044,20 @@ router.get('/today', async (req, res) => {
     const endOfYesterday = new Date(yesterday);
     endOfYesterday.setHours(23, 59, 59, 999);
 
-    // ดึงงานซ่อมที่เสร็จแล้วเมื่อวาน
-    const yesterdayRepairs = await repairRepository
-      .createQueryBuilder('repair')
-      .where('repair.status = :status', { status: RepairStatus.COMPLETED })
-      .andWhere(
-        '(repair.completedDate BETWEEN :startDate AND :endDate OR (repair.completedDate IS NULL AND repair.updatedAt BETWEEN :startDate AND :endDate))',
-        { startDate: startOfYesterday, endDate: endOfYesterday }
-      )
+    // ดึง Transaction ที่ type='income' และ createdAt เป็นเมื่อวาน
+    const yesterdayIncomeTransactions = await transactionRepository
+      .createQueryBuilder('transaction')
+      .where('transaction.type = :type', { type: 'income' })
+      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: startOfYesterday,
+        endDate: endOfYesterday,
+      })
       .getMany();
 
-    // คำนวณรายได้เมื่อวาน
-    const yesterdayRevenue = yesterdayRepairs.reduce((sum, repair) => {
-      const income = repair.repairSummaryPrice || repair.totalCost || 0;
-      return sum + Number(income);
+    // คำนวณรายได้เมื่อวานจาก Transaction
+    const yesterdayRevenue = yesterdayIncomeTransactions.reduce((sum, transaction) => {
+      const amount = Number(transaction.totalCost || 0);
+      return sum + amount;
     }, 0);
 
     // คำนวณเปอร์เซ็นต์การเปลี่ยนแปลง
@@ -1067,6 +1067,8 @@ router.get('/today', async (req, res) => {
     } else if (todayRevenue > 0) {
       revenueChange = 100; // ถ้าเมื่อวานไม่มีรายได้ แต่วันนี้มี
     }
+
+    console.log(`[Today Revenue] Today: ฿${todayRevenue.toFixed(2)} (${todayIncomeTransactions.length} transactions), Yesterday: ฿${yesterdayRevenue.toFixed(2)} (${yesterdayIncomeTransactions.length} transactions)`);
 
     res.json({
       status: 'success',

@@ -171,8 +171,6 @@ const Dashboard = () => {
         <StatCard
           title={t("todaysRevenue")}
           value={isLoadingRevenue ? "..." : `฿${todayRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          change={revenueChange}
-          changeLabel={t("vsYesterday")}
           icon={<DollarSign className="w-5 h-5 text-status-completed" />}
           iconBg="bg-status-completed/10"
         />
