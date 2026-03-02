@@ -927,6 +927,76 @@ router.put('/:id', async (req, res) => {
       console.log(`[Update Repair] Recalculated totalCost from direct fields - Parts: ฿${finalPartsCost}, Labor: ฿${finalLaborCost}, Total: ฿${subtotal}`);
     }
     
+    // อัพเดท Transaction เมื่อมีการเปลี่ยนแปลง partsCost หรือ totalCost
+    const hasCostChange = shouldRecalculateCost || otherFields.partsCost !== undefined || otherFields.totalCost !== undefined;
+    if (hasCostChange) {
+      try {
+        const transactionRepository = AppDataSource.getRepository(Transaction);
+        const finalPartsCost = otherFields.partsCost !== undefined ? Number(otherFields.partsCost) : Number(repair.partsCost || 0);
+        const finalTotalCost = otherFields.totalCost !== undefined ? Number(otherFields.totalCost) : Number(repair.totalCost || 0);
+        
+        // ใช้ partsCost ถ้ามี ไม่เช่นนั้นใช้ totalCost
+        const transactionAmount = finalPartsCost > 0 ? finalPartsCost : finalTotalCost;
+        
+        if (transactionAmount > 0) {
+          // หา Transaction ที่เชื่อมกับ repair นี้
+          const existingTransaction = await transactionRepository.findOne({
+            where: {
+              descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+            },
+          });
+          
+          if (existingTransaction) {
+            // อัพเดท Transaction ที่มีอยู่
+            existingTransaction.totalCost = transactionAmount;
+            await transactionRepository.save(existingTransaction);
+            console.log(`[Update Repair] Updated transaction ${existingTransaction.transactionNumber} for repair ${repair.repairNumber} - New amount: ฿${transactionAmount}`);
+          } else {
+            // ถ้ายังไม่มี Transaction ให้สร้างใหม่
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            
+            const todayCount = await transactionRepository
+              .createQueryBuilder('transaction')
+              .where('transaction.createdAt >= :start', { start: todayStart })
+              .andWhere('transaction.createdAt < :end', { end: todayEnd })
+              .getCount();
+            
+            const sequenceNumber = String(todayCount + 1).padStart(3, '0');
+            const transactionNumber = `TXN-REP-${year}-${month}-${sequenceNumber}`;
+            
+            // ใช้ createdAt ของ repair เพื่อให้วันที่ถูกต้อง
+            const repairCreatedAt = new Date(repair.createdAt);
+            
+            const newTransaction = transactionRepository.create({
+              transactionNumber,
+              type: 'income',
+              totalCost: transactionAmount,
+              description: `Income from Parts - ${repair.repairNumber}`,
+              descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+            });
+            
+            const savedTransaction = await transactionRepository.save(newTransaction);
+            
+            // อัพเดท createdAt ให้ตรงกับวันที่สร้าง repair
+            await AppDataSource.query(
+              'UPDATE transactions SET "createdAt" = $1 WHERE id = $2',
+              [repairCreatedAt, savedTransaction.id]
+            );
+            
+            console.log(`[Update Repair] Created new transaction ${transactionNumber} for repair ${repair.repairNumber} - Amount: ฿${transactionAmount}`);
+          }
+        }
+      } catch (error) {
+        console.error('[Update Repair] Error updating transaction:', error);
+        // Continue even if transaction update fails
+      }
+    }
+    
     // Handle stock updates: restore old parts, deduct new parts
     // Get new part IDs from the updated repair data
     let newPartIds: string[] = [];
