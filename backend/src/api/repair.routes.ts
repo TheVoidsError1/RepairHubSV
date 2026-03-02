@@ -826,7 +826,26 @@ router.put('/:id', async (req, res) => {
         
         // คำนวณราคาจาก selectedParts (ชิ้นส่วนที่มีในคลังสินค้า)
         if (newSelectedPartIds !== undefined || newSelectedPartId !== undefined) {
-          const partIdsToCalculate = newSelectedPartIds || (newSelectedPartId ? [newSelectedPartId] : []);
+          // ใช้ selectedPartIds ใหม่ถ้ามี ถ้าไม่มีให้ใช้ selectedPartId หรือใช้ค่าที่มีอยู่แล้ว
+          let partIdsToCalculate: string[] = [];
+          
+          if (newSelectedPartIds && Array.isArray(newSelectedPartIds) && newSelectedPartIds.length > 0) {
+            partIdsToCalculate = newSelectedPartIds;
+          } else if (newSelectedPartId) {
+            partIdsToCalculate = [newSelectedPartId];
+          } else if (repair.selectedPartIds) {
+            // ถ้าไม่ได้ส่งมาใหม่ ให้ใช้ค่าที่มีอยู่แล้ว
+            try {
+              const parsed = JSON.parse(repair.selectedPartIds);
+              if (Array.isArray(parsed)) {
+                partIdsToCalculate = parsed;
+              }
+            } catch (error) {
+              console.error('[Update Repair] Error parsing existing selectedPartIds:', error);
+            }
+          } else if (repair.selectedPartId) {
+            partIdsToCalculate = [repair.selectedPartId];
+          }
           
           if (partIdsToCalculate.length > 0) {
             const partRepository = AppDataSource.getRepository(Part);
@@ -844,6 +863,8 @@ router.put('/:id', async (req, res) => {
               const partPrice = Number(part.price) || 0;
               autoPartsCost += partPrice * count;
             });
+            
+            console.log(`[Update Repair] Calculated parts cost from ${partIdsToCalculate.length} parts: ฿${autoPartsCost}`);
           }
         } else {
           // ถ้าไม่ได้อัพเดท selectedPartIds ให้ใช้ราคาเดิม
@@ -874,15 +895,14 @@ router.put('/:id', async (req, res) => {
         const totalPartsCost = autoPartsCost + additionalPartsCost;
         
         // อัพเดท partsCost
-        if (shouldRecalculateCost) {
-          otherFields.partsCost = totalPartsCost;
-        }
+        otherFields.partsCost = totalPartsCost;
         
         // คำนวณ totalCost ใหม่ (ไม่รวมภาษี)
-        const currentLaborCost = otherFields.laborCost !== undefined ? otherFields.laborCost : repair.laborCost;
-        const currentPartsCost = otherFields.partsCost !== undefined ? otherFields.partsCost : totalPartsCost;
-        const subtotal = Number(currentPartsCost) + Number(currentLaborCost);
+        const currentLaborCost = otherFields.laborCost !== undefined ? Number(otherFields.laborCost) : Number(repair.laborCost || 0);
+        const subtotal = totalPartsCost + currentLaborCost;
         otherFields.totalCost = subtotal;
+        
+        console.log(`[Update Repair] Recalculated costs - Parts: ฿${totalPartsCost}, Labor: ฿${currentLaborCost}, Total: ฿${subtotal}`);
         
         // อัพเดท repairSummaryPrice ถ้าไม่ได้ส่งมา
         if (otherFields.repairSummaryPrice === undefined) {
@@ -897,13 +917,14 @@ router.put('/:id', async (req, res) => {
       Object.assign(repair, otherFields);
     }
     
-    // คำนวณ totalCost อัตโนมัติ (ไม่รวมภาษี) ถ้ามีการเปลี่ยนแปลง partsCost หรือ laborCost
-    // หรือถ้า totalCost ไม่ได้ถูกส่งมา
-    if (otherFields.partsCost !== undefined || otherFields.laborCost !== undefined || otherFields.totalCost === undefined) {
-      const finalPartsCost = otherFields.partsCost !== undefined ? Number(otherFields.partsCost) : Number(repair.partsCost);
-      const finalLaborCost = otherFields.laborCost !== undefined ? Number(otherFields.laborCost) : Number(repair.laborCost);
+    // คำนวณ totalCost อัตโนมัติ (ไม่รวมภาษี) ถ้ามีการเปลี่ยนแปลง partsCost หรือ laborCost โดยตรง
+    // หรือถ้า totalCost ไม่ได้ถูกส่งมา และไม่ได้คำนวณไปแล้วในบล็อก shouldRecalculateCost
+    if (!shouldRecalculateCost && (otherFields.partsCost !== undefined || otherFields.laborCost !== undefined || otherFields.totalCost === undefined)) {
+      const finalPartsCost = otherFields.partsCost !== undefined ? Number(otherFields.partsCost) : Number(repair.partsCost || 0);
+      const finalLaborCost = otherFields.laborCost !== undefined ? Number(otherFields.laborCost) : Number(repair.laborCost || 0);
       const subtotal = finalPartsCost + finalLaborCost;
       repair.totalCost = subtotal;
+      console.log(`[Update Repair] Recalculated totalCost from direct fields - Parts: ฿${finalPartsCost}, Labor: ฿${finalLaborCost}, Total: ฿${subtotal}`);
     }
     
     // Handle stock updates: restore old parts, deduct new parts

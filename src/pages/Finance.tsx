@@ -255,6 +255,13 @@ const Finance = () => {
     : summary.totalExpenses + summary.partsMarkup + summary.averageProfitPerRepair;
   const financialBreakdown = totalBase > 0 ? [
     {
+      name: language === "th" ? "รายได้รวม" : "Total Income",
+      nameTh: "รายได้รวม",
+      value: (summary.totalIncome / totalBase) * 100,
+      amount: summary.totalIncome,
+      color: "hsl(142, 71%, 45%)", // Green
+    },
+    {
       name: language === "th" ? "ต้นทุนอะไหล่" : "Cost of Parts",
       nameTh: "ต้นทุนอะไหล่",
       value: (summary.totalPartsCost / totalBase) * 100,
@@ -273,7 +280,7 @@ const Finance = () => {
       nameTh: "กำไรจากอะไหล่",
       value: (summary.partsMarkup / totalBase) * 100,
       amount: summary.partsMarkup,
-      color: "hsl(142, 71%, 45%)", // Green
+      color: "hsl(142, 76%, 55%)", // Light Green
     },
     {
       name: language === "th" ? "กำไรเฉลี่ยต่องาน" : "Avg Profit per Job",
@@ -587,7 +594,7 @@ const Finance = () => {
                     const formattedValue = typeof value === 'number' 
                       ? `฿${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : value;
-                    return [formattedValue, name === 'income' ? t("income") : t("expenses")];
+                    return [formattedValue, name === 'income' ? (language === "th" ? "รายรับ" : "Income") : (language === "th" ? "รายจ่าย" : "Expenses")];
                   }}
                   labelFormatter={(label) => label}
                 />
@@ -595,13 +602,13 @@ const Finance = () => {
                   dataKey="income"
                   fill="hsl(142, 71%, 45%)"
                   radius={[4, 4, 0, 0]}
-                  name={t("income")}
+                  name={language === "th" ? "รายรับ" : "Income"}
                 />
                 <Bar
                   dataKey="expenses"
                   fill="hsl(0, 84%, 60%)"
                   radius={[4, 4, 0, 0]}
-                  name={t("expenses")}
+                  name={language === "th" ? "รายจ่าย" : "Expenses"}
                 />
               </BarChart>
             </ResponsiveContainer>
