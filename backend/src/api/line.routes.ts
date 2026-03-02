@@ -1396,13 +1396,29 @@ router.post('/customers/:id/send-receipt-image', receiptImageUpload.single('imag
     const filepath = path.join(uploadsDir, filename);
     fs.writeFileSync(filepath, req.file.buffer);
 
-    // สร้าง public URL
-    const backendPublicUrl = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
+    // สร้าง public URL - auto-detect จาก request หรือใช้ environment variable
+    let backendPublicUrl = (process.env.BACKEND_PUBLIC_URL || '').replace(/\/$/, '');
+    
+    // ถ้าไม่มี BACKEND_PUBLIC_URL ให้ auto-detect จาก request
+    if (!backendPublicUrl) {
+      // ตรวจสอบ Render environment variable
+      if (process.env.RENDER_EXTERNAL_URL) {
+        backendPublicUrl = process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
+      } else {
+        // Auto-detect จาก request headers (รองรับ reverse proxy)
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const host = req.get('x-forwarded-host') || req.get('host') || '';
+        if (host) {
+          backendPublicUrl = `${protocol}://${host}`;
+        }
+      }
+    }
+    
     if (!backendPublicUrl) {
       fs.unlinkSync(filepath); // ลบไฟล์ก่อน return
       return res.status(500).json({
         status: 'error',
-        message: 'BACKEND_PUBLIC_URL ยังไม่ได้ตั้งค่า กรุณาเพิ่ม BACKEND_PUBLIC_URL=https://your-ngrok-url ในไฟล์ .env',
+        message: 'ไม่สามารถสร้าง public URL ได้ กรุณาตั้งค่า BACKEND_PUBLIC_URL หรือ RENDER_EXTERNAL_URL ใน environment variables',
       });
     }
 
