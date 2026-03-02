@@ -148,7 +148,14 @@ const RepairBillManagement = () => {
     if (!deletingRepair) return;
     setIsDeleting(true);
     try {
-      await apiClient.deleteRepair(deletingRepair.id);
+      const response = await apiClient.deleteRepair(deletingRepair.id);
+      
+      // ตรวจสอบว่า response status เป็น success หรือไม่
+      if (response.status === 'error') {
+        throw new Error(response.message || (language === "th" ? "ลบใบแจ้งซ่อมไม่สำเร็จ" : "Failed to delete repair bill"));
+      }
+      
+      // ลบสำเร็จแล้ว refresh ข้อมูล
       await refreshRepairs();
       setDeleteDialogOpen(false);
       setDeletingRepair(null);
@@ -157,6 +164,7 @@ const RepairBillManagement = () => {
         description: language === "th" ? `ลบ ${deletingRepair.id} เรียบร้อย` : `${deletingRepair.id} has been deleted.`,
       });
     } catch (err: any) {
+      console.error('Error deleting repair:', err);
       toast({
         title: language === "th" ? "เกิดข้อผิดพลาด" : "Error",
         description: err?.message || (language === "th" ? "ลบใบแจ้งซ่อมไม่สำเร็จ" : "Failed to delete repair bill"),
