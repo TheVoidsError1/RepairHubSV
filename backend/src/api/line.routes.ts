@@ -10,6 +10,7 @@ import axios from 'axios';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { normalizePhone, validatePhone } from '../utils/phone.js';
 
 const router = Router();
 
@@ -296,13 +297,13 @@ router.post('/webhook', async (req, res) => {
         const messageText = event.message.text;
         console.log(`[LINE Webhook] Message from ${userId}: ${messageText}`);
 
-        // ตรวจสอบว่าเป็นเบอร์โทรหรือไม่ (10 หลัก เริ่มต้นด้วย 0)
-        const phonePattern = /^0\d{9}$/;
-        const isPhoneNumber = phonePattern.test(messageText.trim());
+        // ตรวจสอบว่าเป็นเบอร์โทรหรือไม่ (รองรับรูปแบบ +66, 0, 66)
+        const isPhoneNumber = validatePhone(messageText.trim());
 
         if (isPhoneNumber) {
-          const phone = messageText.trim();
-          console.log(`[LINE Webhook] Detected phone number: ${phone}`);
+          // Normalize phone number (convert +66 to 0, etc.)
+          const phone = normalizePhone(messageText.trim());
+          console.log(`[LINE Webhook] Detected phone number: ${messageText.trim()} -> normalized: ${phone}`);
 
           // ค้นหาลูกค้าจากเบอร์โทร
           const customerRepository = AppDataSource.getRepository(Customer);
@@ -907,11 +908,7 @@ router.post('/unlink-customer', async (req, res) => {
  * ============================================
  */
 
-// Validation helper functions
-const validatePhone = (phone: string): boolean => {
-  const phoneRegex = /^[0-9]{9,10}$/;
-  return phoneRegex.test(phone.replace(/[-\s]/g, ''));
-};
+// Note: validatePhone is now imported from utils/phone.ts
 
 /**
  * ค้นหาลูกค้า
@@ -939,13 +936,22 @@ router.get('/customers/search', async (req, res) => {
 
     const searchTerm = q.trim();
     
+    // Try to normalize phone number if it's a valid phone format
+    // This allows searching with +66 format to find normalized phone (0)
+    let normalizedSearchTerm = searchTerm;
+    if (validatePhone(searchTerm)) {
+      normalizedSearchTerm = normalizePhone(searchTerm);
+    }
+    
     // ค้นหาตามชื่อ (firstName, lastName, fullName) หรือเบอร์โทร
+    // Search both original and normalized phone to support both formats
     const customers = await customerRepository.find({
       where: [
         { firstName: Like(`%${searchTerm}%`) },
         { lastName: Like(`%${searchTerm}%`) },
         { fullName: Like(`%${searchTerm}%`) },
         { phone: Like(`%${searchTerm}%`) },
+        ...(normalizedSearchTerm !== searchTerm ? [{ phone: Like(`%${normalizedSearchTerm}%`) }] : []),
       ],
       relations: ['repairs'],
       order: { createdAt: 'DESC' },
@@ -1035,10 +1041,13 @@ router.post('/customers', async (req, res) => {
 
     const customerRepository = AppDataSource.getRepository(Customer);
     
+    // Normalize phone number if provided
+    const normalizedPhone = phone ? normalizePhone(phone.trim()) : null;
+    
     // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
-    if (phone) {
+    if (normalizedPhone) {
       const existingCustomer = await customerRepository.findOne({
-        where: { phone: phone.trim() },
+        where: { phone: normalizedPhone },
       });
       if (existingCustomer) {
         return res.status(400).json({
@@ -1050,10 +1059,10 @@ router.post('/customers', async (req, res) => {
 
     const newCustomer = customerRepository.create({
       firstName: firstName.trim(),
-      lastName: lastName?.trim() || null,
-      fullName: fullName?.trim() || null,
-      phone: phone?.trim() || null,
-      lineId: lineId?.trim() || null,
+      lastName: lastName?.trim() || undefined,
+      fullName: fullName?.trim() || undefined,
+      phone: normalizedPhone || undefined,
+      lineId: lineId?.trim() || undefined,
     });
 
     const savedCustomer = await customerRepository.save(newCustomer);
@@ -1117,10 +1126,13 @@ router.put('/customers/:id', async (req, res) => {
       });
     }
 
+    // Normalize phone number if provided
+    const normalizedPhone = phone ? normalizePhone(phone.trim()) : null;
+    
     // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่ (ยกเว้นลูกค้าคนนี้)
-    if (phone) {
+    if (normalizedPhone) {
       const existingCustomer = await customerRepository.findOne({
-        where: { phone: phone.trim() },
+        where: { phone: normalizedPhone },
       });
       if (existingCustomer && existingCustomer.id !== id) {
         return res.status(400).json({
@@ -1132,10 +1144,10 @@ router.put('/customers/:id', async (req, res) => {
 
     // อัพเดทเฉพาะฟิลด์ที่ระบุ
     if (firstName !== undefined) customer.firstName = firstName.trim();
-    if (lastName !== undefined) customer.lastName = lastName?.trim() || null;
-    if (fullName !== undefined) customer.fullName = fullName?.trim() || null;
-    if (phone !== undefined) customer.phone = phone?.trim() || null;
-    if (lineId !== undefined) customer.lineId = lineId?.trim() || null;
+    if (lastName !== undefined) customer.lastName = lastName?.trim() || undefined;
+    if (fullName !== undefined) customer.fullName = fullName?.trim() || undefined;
+    if (phone !== undefined) customer.phone = normalizedPhone || undefined;
+    if (lineId !== undefined) customer.lineId = lineId?.trim() || undefined;
 
     const updatedCustomer = await customerRepository.save(customer);
 

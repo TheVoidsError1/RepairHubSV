@@ -8,6 +8,7 @@ import { Repair, RepairStatus, ServiceType } from '../entities/Repair.js';
 import { Transaction } from '../entities/Transaction.js';
 import { WarrantyClaim, WarrantyClaimStatus } from '../entities/WarrantyClaim.js';
 import { getLineNotificationService } from '../services/line-notification.service.js';
+import { normalizePhone } from '../utils/phone.js';
 
 const router = Router();
 
@@ -392,7 +393,9 @@ router.post('/', async (req, res) => {
     // Find or create customer
     // Check if customer exists with both phone AND name (to avoid updating existing customers)
     const trimmedCustomerName = customerName.trim();
-    const trimmedPhone = phone.trim();
+    // Normalize phone number (convert +66 to 0, etc.)
+    const normalizedPhone = normalizePhone(phone.trim());
+    const trimmedPhone = normalizedPhone;
     
     // Parse customer name - support both fullName and firstName/lastName
     const nameParts = trimmedCustomerName.split(/\s+/);
@@ -425,7 +428,7 @@ router.post('/', async (req, res) => {
         lastName: lastName || undefined,
         fullName: trimmedCustomerName,
         phone: trimmedPhone,
-        phoneBackup: phoneBackup?.trim() || undefined,
+        phoneBackup: phoneBackup ? normalizePhone(phoneBackup.trim()) : undefined,
         lineId: lineId?.trim() || undefined,
         lineIdRes: lineIdRes?.trim() || undefined,
       });
@@ -433,7 +436,7 @@ router.post('/', async (req, res) => {
     } else {
       // If customer found, update phoneBackup, lineId and lineIdRes if provided
       if (phoneBackup !== undefined) {
-        customer.phoneBackup = phoneBackup?.trim() || undefined;
+        customer.phoneBackup = phoneBackup ? normalizePhone(phoneBackup.trim()) : undefined;
       }
       if (lineId !== undefined) {
         customer.lineId = lineId?.trim() || undefined;

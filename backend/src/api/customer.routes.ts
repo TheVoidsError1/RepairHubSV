@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AppDataSource } from '../config/data-source.js';
 import { Customer } from '../entities/Customer.js';
 import { Like } from 'typeorm';
+import { normalizePhone, validatePhone } from '../utils/phone.js';
 
 const router = Router();
 
@@ -9,11 +10,6 @@ const router = Router();
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-};
-
-const validatePhone = (phone: string): boolean => {
-  const phoneRegex = /^[0-9]{9,10}$/;
-  return phoneRegex.test(phone.replace(/[-\s]/g, ''));
 };
 
 // Get all customers
@@ -61,13 +57,22 @@ router.get('/search', async (req, res) => {
 
     const searchTerm = q.trim();
     
+    // Try to normalize phone number if it's a valid phone format
+    // This allows searching with +66 format to find normalized phone (0)
+    let normalizedSearchTerm = searchTerm;
+    if (validatePhone(searchTerm)) {
+      normalizedSearchTerm = normalizePhone(searchTerm);
+    }
+    
     // Search by name (firstName, lastName, fullName) or phone
+    // Search both original and normalized phone to support both formats
     const customers = await customerRepository.find({
       where: [
         { firstName: Like(`%${searchTerm}%`) },
         { lastName: Like(`%${searchTerm}%`) },
         { fullName: Like(`%${searchTerm}%`) },
         { phone: Like(`%${searchTerm}%`) },
+        ...(normalizedSearchTerm !== searchTerm ? [{ phone: Like(`%${normalizedSearchTerm}%`) }] : []),
       ],
       relations: ['repairs'],
       order: { createdAt: 'DESC' },
@@ -194,10 +199,13 @@ router.post('/', async (req, res) => {
 
     const customerRepository = AppDataSource.getRepository(Customer);
     
-    // Check if email already exists
-    if (email) {
+    // Normalize phone number if provided
+    const normalizedPhone = phone ? normalizePhone(phone.trim()) : null;
+    
+    // Check if phone already exists
+    if (normalizedPhone) {
       const existingCustomer = await customerRepository.findOne({
-        where: { phone },
+        where: { phone: normalizedPhone },
       });
       if (existingCustomer) {
         return res.status(400).json({
@@ -210,7 +218,7 @@ router.post('/', async (req, res) => {
     const newCustomer = customerRepository.create({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      phone: phone?.trim() || null,
+      phone: phone ? normalizePhone(phone.trim()) : null,
       lineId: lineId?.trim() || null,
       device: device?.trim() || null,
     });
@@ -292,7 +300,7 @@ router.put('/:id', async (req, res) => {
     // Update only provided fields
     if (firstName !== undefined) customer.firstName = firstName.trim();
     if (lastName !== undefined) customer.lastName = lastName.trim();
-    if (phone !== undefined) customer.phone = phone?.trim() || null;
+    if (phone !== undefined) customer.phone = phone ? normalizePhone(phone.trim()) : null;
     if (lineId !== undefined) customer.lineId = lineId?.trim() || null;
     if (device !== undefined) customer.device = device?.trim() || null;
 
