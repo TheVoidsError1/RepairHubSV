@@ -17,16 +17,20 @@ export function normalizePhone(phone: string): string {
   
   // Handle +66 format (Thailand country code)
   if (cleaned.startsWith('+66')) {
-    // Replace +66 with 0
-    cleaned = '0' + cleaned.substring(3);
+    // Get the number part after +66
+    const numberPart = cleaned.substring(3);
+    // If it already starts with 0, use it as is; otherwise add 0
+    cleaned = numberPart.startsWith('0') ? numberPart : '0' + numberPart;
   }
   // Handle 0066 format (alternative international format)
   else if (cleaned.startsWith('0066')) {
-    cleaned = '0' + cleaned.substring(4);
+    const numberPart = cleaned.substring(4);
+    cleaned = numberPart.startsWith('0') ? numberPart : '0' + numberPart;
   }
   // Handle 66 format (without leading 0 or +)
   else if (cleaned.startsWith('66') && cleaned.length === 11) {
-    cleaned = '0' + cleaned.substring(2);
+    const numberPart = cleaned.substring(2);
+    cleaned = numberPart.startsWith('0') ? numberPart : '0' + numberPart;
   }
   
   return cleaned;

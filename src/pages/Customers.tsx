@@ -68,6 +68,8 @@ const Customers = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+  const [repairsCount, setRepairsCount] = useState<number>(0);
+  const [isLoadingRepairsCount, setIsLoadingRepairsCount] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
     firstName: "",
@@ -260,9 +262,25 @@ const Customers = () => {
     }
   };
 
-  const openDeleteDialog = (customer: Customer) => {
+  const openDeleteDialog = async (customer: Customer) => {
     setDeleteTarget(customer);
+    setIsLoadingRepairsCount(true);
     setIsDeleteDialogOpen(true);
+    
+    // ดึงข้อมูลจำนวน repairs ที่เกี่ยวข้อง
+    try {
+      const response = await apiClient.getCustomerWithRepairs(customer.id);
+      if (response.status === "success" && response.data?.repairs) {
+        setRepairsCount(response.data.repairs.length || 0);
+      } else {
+        setRepairsCount(0);
+      }
+    } catch (error) {
+      console.error("Error loading repairs count:", error);
+      setRepairsCount(0);
+    } finally {
+      setIsLoadingRepairsCount(false);
+    }
   };
 
   const handleDeleteCustomer = async () => {
@@ -272,13 +290,15 @@ const Customers = () => {
       const response = await apiClient.deleteCustomer(deleteTarget.id);
 
       if (response.status === "success") {
+        const deletedCounts = (response as any).deletedCounts;
         toast.success(
           language === "th"
-            ? "ลบลูกค้าสำเร็จ"
-            : "Customer deleted successfully"
+            ? `ลบลูกค้าและข้อมูลที่เกี่ยวข้องสำเร็จ${deletedCounts?.repairs ? ` (ลบรายการซ่อม ${deletedCounts.repairs} รายการ)` : ""}`
+            : `Customer and related data deleted successfully${deletedCounts?.repairs ? ` (${deletedCounts.repairs} repairs deleted)` : ""}`
         );
         setIsDeleteDialogOpen(false);
         setDeleteTarget(null);
+        setRepairsCount(0);
         loadCustomers();
       } else {
         toast.error(
@@ -792,28 +812,70 @@ const Customers = () => {
               <AlertDialogTitle>
                 {language === "th" ? "ยืนยันการลบ" : "Confirm Delete"}
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs sm:text-sm">
+              <AlertDialogDescription className="text-xs sm:text-sm space-y-2">
                 {language === "th" ? (
                   <>
-                    คุณแน่ใจหรือไม่ว่าต้องการลบลูกค้า{" "}
-                    <strong>
-                      {deleteTarget
-                        ? deleteTarget.fullName ||
-                          `${deleteTarget.firstName} ${deleteTarget.lastName || ""}`.trim()
-                        : ""}
-                    </strong>
-                    ? การกระทำนี้ไม่สามารถยกเลิกได้
+                    <p>
+                      คุณแน่ใจหรือไม่ว่าต้องการลบลูกค้า{" "}
+                      <strong>
+                        {deleteTarget
+                          ? deleteTarget.fullName ||
+                            `${deleteTarget.firstName} ${deleteTarget.lastName || ""}`.trim()
+                          : ""}
+                      </strong>
+                      ?
+                    </p>
+                    {isLoadingRepairsCount ? (
+                      <p className="text-muted-foreground">กำลังตรวจสอบข้อมูล...</p>
+                    ) : repairsCount > 0 ? (
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 space-y-1">
+                        <p className="font-semibold text-destructive">
+                          ⚠️ คำเตือน: การลบนี้จะลบข้อมูลที่เกี่ยวข้องทั้งหมด
+                        </p>
+                        <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                          <li>รายการซ่อมทั้งหมด: <strong>{repairsCount} รายการ</strong></li>
+                          <li>บิลที่เกี่ยวข้องทั้งหมด</li>
+                          <li>การรับประกันที่เกี่ยวข้องทั้งหมด</li>
+                          <li>ธุรกรรมที่เกี่ยวข้องทั้งหมด</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        การกระทำนี้ไม่สามารถยกเลิกได้
+                      </p>
+                    )}
                   </>
                 ) : (
                   <>
-                    Are you sure you want to delete customer{" "}
-                    <strong>
-                      {deleteTarget
-                        ? deleteTarget.fullName ||
-                          `${deleteTarget.firstName} ${deleteTarget.lastName || ""}`.trim()
-                        : ""}
-                    </strong>
-                    ? This action cannot be undone.
+                    <p>
+                      Are you sure you want to delete customer{" "}
+                      <strong>
+                        {deleteTarget
+                          ? deleteTarget.fullName ||
+                            `${deleteTarget.firstName} ${deleteTarget.lastName || ""}`.trim()
+                          : ""}
+                      </strong>
+                      ?
+                    </p>
+                    {isLoadingRepairsCount ? (
+                      <p className="text-muted-foreground">Checking related data...</p>
+                    ) : repairsCount > 0 ? (
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 space-y-1">
+                        <p className="font-semibold text-destructive">
+                          ⚠️ Warning: This will delete all related data
+                        </p>
+                        <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                          <li>All repair orders: <strong>{repairsCount} items</strong></li>
+                          <li>All related bills</li>
+                          <li>All related warranty claims</li>
+                          <li>All related transactions</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        This action cannot be undone.
+                      </p>
+                    )}
                   </>
                 )}
               </AlertDialogDescription>

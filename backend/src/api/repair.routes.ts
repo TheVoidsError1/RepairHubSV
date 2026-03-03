@@ -402,7 +402,8 @@ router.post('/', async (req, res) => {
     const firstName = nameParts[0] || trimmedCustomerName;
     const lastName = nameParts.slice(1).join(' ') || '';
     
-    // Try to find customer with matching phone AND name
+    // Try to find customer - search by normalized phone first, then try to find by name
+    // This handles cases where phone in DB might not be normalized yet
     let customer = await customerRepository.findOne({
       where: { 
         phone: trimmedPhone,
@@ -410,7 +411,7 @@ router.post('/', async (req, res) => {
       },
     });
     
-    // If not found by fullName, try to match by firstName + lastName
+    // If not found by fullName, try to match by firstName + lastName with normalized phone
     if (!customer) {
       customer = await customerRepository.findOne({
         where: { 
@@ -419,6 +420,29 @@ router.post('/', async (req, res) => {
           lastName: lastName || undefined,
         },
       });
+    }
+    
+    // If still not found, try searching by name only (in case phone format differs)
+    // This helps when phone in DB is not normalized (e.g., 00954225845 vs 0954225845)
+    if (!customer) {
+      // Find all customers with matching name
+      const customersByName = await customerRepository.find({
+        where: [
+          { fullName: trimmedCustomerName },
+          { firstName: firstName, lastName: lastName || undefined },
+        ],
+      });
+      
+      // Check if any of them have a phone that normalizes to the same number
+      for (const c of customersByName) {
+        if (c.phone) {
+          const normalizedDbPhone = normalizePhone(c.phone);
+          if (normalizedDbPhone === trimmedPhone) {
+            customer = c;
+            break;
+          }
+        }
+      }
     }
     
     // If still not found, create a new customer

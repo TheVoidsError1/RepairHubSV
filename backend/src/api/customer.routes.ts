@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { AppDataSource } from '../config/data-source.js';
 import { Customer } from '../entities/Customer.js';
+import { Repair } from '../entities/Repair.js';
+import { WarrantyClaim } from '../entities/WarrantyClaim.js';
+import { Transaction } from '../entities/Transaction.js';
 import { Like } from 'typeorm';
 import { normalizePhone, validatePhone } from '../utils/phone.js';
 
@@ -294,8 +297,31 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Check if email already exists (excluding current customer)
-
+    // Normalize phone number if provided
+    const normalizedPhone = phone ? normalizePhone(phone.trim()) : undefined;
+    
+    // Check if phone already exists (excluding current customer)
+    if (normalizedPhone) {
+      // Find customers with the same normalized phone (handles different formats)
+      const allCustomers = await customerRepository.find({
+        where: {},
+      });
+      
+      // Check if any other customer has a phone that normalizes to the same number
+      const duplicateCustomer = allCustomers.find(c => {
+        if (c.id === id) return false; // Skip current customer
+        if (!c.phone) return false;
+        const normalizedDbPhone = normalizePhone(c.phone);
+        return normalizedDbPhone === normalizedPhone;
+      });
+      
+      if (duplicateCustomer) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Phone number already exists',
+        });
+      }
+    }
 
     // Update only provided fields
     if (firstName !== undefined) customer.firstName = firstName.trim();
@@ -335,6 +361,10 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const customerRepository = AppDataSource.getRepository(Customer);
+    const repairRepository = AppDataSource.getRepository(Repair);
+    const warrantyRepository = AppDataSource.getRepository(WarrantyClaim);
+    const transactionRepository = AppDataSource.getRepository(Transaction);
+    
     const customer = await customerRepository.findOne({ 
       where: { id },
       relations: ['repairs'],
@@ -347,30 +377,130 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Check if customer has repairs
-    if (customer.repairs && customer.repairs.length > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Cannot delete customer with existing repairs. Please delete or reassign repairs first.',
-        repairsCount: customer.repairs.length,
-      });
+    console.log(`[Delete Customer] Attempting to delete customer ${id} (${customer.firstName} ${customer.lastName || ''})`);
+
+    // Get all repairs for this customer
+    const repairs = await repairRepository.find({
+      where: { customerId: id },
+    });
+
+    console.log(`[Delete Customer] Found ${repairs.length} repair(s) to delete`);
+
+    // Delete all related data for each repair
+    for (const repair of repairs) {
+      console.log(`[Delete Customer] Processing repair ${repair.repairNumber}...`);
+
+      // 1. Delete Bills associated with this repair
+      try {
+        const billsResult = await AppDataSource.query(
+          'SELECT id FROM bills WHERE "repairId" = $1',
+          [repair.id]
+        );
+        if (billsResult && billsResult.length > 0) {
+          console.log(`[Delete Customer] Found ${billsResult.length} bill(s) for repair ${repair.repairNumber}`);
+          await AppDataSource.query('DELETE FROM bills WHERE "repairId" = $1', [repair.id]);
+          console.log(`[Delete Customer] Deleted ${billsResult.length} bill(s) for repair ${repair.repairNumber}`);
+        }
+      } catch (error) {
+        console.error(`[Delete Customer] Error deleting bills for repair ${repair.repairNumber}:`, error);
+      }
+
+      // 2. Delete WarrantyClaims associated with this repair
+      try {
+        const warrantyClaims = await warrantyRepository.find({
+          where: { repairId: repair.id },
+        });
+        if (warrantyClaims.length > 0) {
+          console.log(`[Delete Customer] Found ${warrantyClaims.length} warranty claim(s) for repair ${repair.repairNumber}`);
+          await warrantyRepository.delete({ repairId: repair.id });
+          console.log(`[Delete Customer] Deleted ${warrantyClaims.length} warranty claim(s) for repair ${repair.repairNumber}`);
+        }
+      } catch (error) {
+        console.error(`[Delete Customer] Error deleting warranty claims for repair ${repair.repairNumber}:`, error);
+      }
+
+      // 3. Delete Transactions associated with this repair
+      try {
+        const relatedTransactions = await transactionRepository.find({
+          where: {
+            descriptionTh: `เงินเข้า - อะไหล่ - ${repair.repairNumber}`,
+          },
+        });
+        if (relatedTransactions.length > 0) {
+          console.log(`[Delete Customer] Found ${relatedTransactions.length} transaction(s) for repair ${repair.repairNumber}`);
+          await transactionRepository.remove(relatedTransactions);
+          console.log(`[Delete Customer] Deleted ${relatedTransactions.length} transaction(s) for repair ${repair.repairNumber}`);
+        }
+      } catch (error) {
+        console.error(`[Delete Customer] Error deleting transactions for repair ${repair.repairNumber}:`, error);
+      }
+
+      // 4. Restore stock for parts used in this repair
+      try {
+        const partIdsToRestore: string[] = [];
+        if (repair.selectedPartIds) {
+          try {
+            const parsed = JSON.parse(repair.selectedPartIds);
+            if (Array.isArray(parsed)) {
+              partIdsToRestore.push(...parsed);
+            }
+          } catch (error) {
+            console.error(`[Delete Customer] Error parsing selectedPartIds for repair ${repair.repairNumber}:`, error);
+          }
+        } else if (repair.selectedPartId) {
+          partIdsToRestore.push(repair.selectedPartId);
+        }
+
+        if (partIdsToRestore.length > 0) {
+          const { Part } = await import('../entities/Part.js');
+          const partRepository = AppDataSource.getRepository(Part);
+          
+          const partCounts: Record<string, number> = {};
+          partIdsToRestore.forEach(id => {
+            partCounts[id] = (partCounts[id] || 0) + 1;
+          });
+
+          for (const [partId, quantity] of Object.entries(partCounts)) {
+            const part = await partRepository.findOne({ where: { id: partId } });
+            if (part) {
+              part.stockQuantity = part.stockQuantity + quantity;
+              await partRepository.save(part);
+              console.log(`[Delete Customer] Restored stock for part ${partId} by ${quantity}. New stock: ${part.stockQuantity}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[Delete Customer] Error restoring stock for repair ${repair.repairNumber}:`, error);
+      }
     }
 
-    await customerRepository.remove(customer);
+    // 5. Delete all repairs for this customer
+    if (repairs.length > 0) {
+      try {
+        await repairRepository.delete({ customerId: id });
+        console.log(`[Delete Customer] Deleted ${repairs.length} repair(s) for customer ${id}`);
+      } catch (error) {
+        console.error(`[Delete Customer] Error deleting repairs:`, error);
+        throw error;
+      }
+    }
+
+    // 6. Finally, delete the customer
+    await customerRepository.delete(id);
+    console.log(`[Delete Customer] Successfully deleted customer ${id}`);
 
     res.json({
       status: 'success',
-      message: 'Customer deleted successfully',
+      message: 'Customer and all related data deleted successfully',
+      deletedCounts: {
+        repairs: repairs.length,
+      },
     });
   } catch (error) {
-    console.error('Delete customer error:', error);
-    
-    // Handle foreign key constraint errors
-    if (error instanceof Error && error.message.includes('foreign key')) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Cannot delete customer with existing repairs',
-      });
+    console.error('[Delete Customer] Error details:', error);
+    if (error instanceof Error) {
+      console.error('[Delete Customer] Error message:', error.message);
+      console.error('[Delete Customer] Error stack:', error.stack);
     }
 
     res.status(500).json({
