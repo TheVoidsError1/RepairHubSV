@@ -200,7 +200,7 @@ router.post('/', async (req, res) => {
     const customerRepository = AppDataSource.getRepository(Customer);
     
     // Normalize phone number if provided
-    const normalizedPhone = phone ? normalizePhone(phone.trim()) : null;
+    const normalizedPhone = phone ? normalizePhone(phone.trim()) : undefined;
     
     // Check if phone already exists
     if (normalizedPhone) {
@@ -218,9 +218,9 @@ router.post('/', async (req, res) => {
     const newCustomer = customerRepository.create({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      phone: phone ? normalizePhone(phone.trim()) : null,
-      lineId: lineId?.trim() || null,
-      device: device?.trim() || null,
+      phone: phone ? normalizePhone(phone.trim()) : undefined,
+      lineId: lineId?.trim() || undefined,
+      device: device?.trim() || undefined,
     });
 
     const savedCustomer = await customerRepository.save(newCustomer);
@@ -300,9 +300,9 @@ router.put('/:id', async (req, res) => {
     // Update only provided fields
     if (firstName !== undefined) customer.firstName = firstName.trim();
     if (lastName !== undefined) customer.lastName = lastName.trim();
-    if (phone !== undefined) customer.phone = phone ? normalizePhone(phone.trim()) : null;
-    if (lineId !== undefined) customer.lineId = lineId?.trim() || null;
-    if (device !== undefined) customer.device = device?.trim() || null;
+    if (phone !== undefined) customer.phone = phone ? normalizePhone(phone.trim()) : undefined;
+    if (lineId !== undefined) customer.lineId = lineId?.trim() || undefined;
+    if (device !== undefined) customer.device = device?.trim() || undefined;
 
     const updatedCustomer = await customerRepository.save(customer);
 
