@@ -905,7 +905,32 @@ router.put('/:id', async (req, res) => {
     }
 
     // Update other fields (excluding status which we already handled)
-    const { status, selectedPartIds: newSelectedPartIds, selectedPartId: newSelectedPartId, additionalParts: newAdditionalParts, ...otherFields } = req.body;
+    const { status, selectedPartIds: newSelectedPartIds, selectedPartId: newSelectedPartId, additionalParts: newAdditionalParts, scheduledPickupTime, receiveDate, receiveTime, ...otherFields } = req.body;
+    
+    // Parse scheduledPickupTime, receiveDate, receiveTime if provided
+    if (scheduledPickupTime !== undefined) {
+      if (scheduledPickupTime && typeof scheduledPickupTime === 'string') {
+        otherFields.scheduledPickupTime = new Date(scheduledPickupTime);
+      } else if (scheduledPickupTime === null || scheduledPickupTime === '') {
+        otherFields.scheduledPickupTime = null;
+      } else {
+        otherFields.scheduledPickupTime = scheduledPickupTime;
+      }
+    }
+    
+    if (receiveDate !== undefined) {
+      if (receiveDate && typeof receiveDate === 'string') {
+        otherFields.receiveDate = new Date(receiveDate);
+      } else if (receiveDate === null || receiveDate === '') {
+        otherFields.receiveDate = null;
+      } else {
+        otherFields.receiveDate = receiveDate;
+      }
+    }
+    
+    if (receiveTime !== undefined) {
+      otherFields.receiveTime = receiveTime && typeof receiveTime === 'string' ? receiveTime.trim().slice(0, 5) : receiveTime;
+    }
     
     // Handle additionalParts update
     if (newAdditionalParts !== undefined) {
@@ -1307,30 +1332,30 @@ router.put('/:id', async (req, res) => {
             const deviceType = repairWithCustomer.deviceModel || repairWithCustomer.deviceType;
 
             // Format date and time for display
-            let formattedDate = '-';
-            let formattedTime = '-';
-            let formattedScheduledPickup = '-';
-            
-            if (repairWithCustomer.receiveDate) {
-              formattedDate = new Date(repairWithCustomer.receiveDate).toLocaleDateString('th-TH', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              });
-            }
-            
-            if (repairWithCustomer.receiveTime) {
-              formattedTime = repairWithCustomer.receiveTime;
-            }
+            const appointmentDetails: string[] = [];
             
             if (repairWithCustomer.scheduledPickupTime) {
-              formattedScheduledPickup = new Date(repairWithCustomer.scheduledPickupTime).toLocaleString('th-TH', {
+              const formattedScheduledPickup = new Date(repairWithCustomer.scheduledPickupTime).toLocaleString('th-TH', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
               });
+              appointmentDetails.push(`วันเวลานัดรับ: ${formattedScheduledPickup}`);
+            }
+            
+            if (repairWithCustomer.receiveDate) {
+              const formattedDate = new Date(repairWithCustomer.receiveDate).toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              appointmentDetails.push(`วันที่รับเครื่อง: ${formattedDate}`);
+            }
+            
+            if (repairWithCustomer.receiveTime) {
+              appointmentDetails.push(`เวลารับเครื่อง: ${repairWithCustomer.receiveTime}`);
             }
 
             // Create notification message for appointment change
@@ -1341,9 +1366,7 @@ router.put('/:id', async (req, res) => {
 อุปกรณ์: ${deviceType}
 
 วันเวลานัดรับเครื่องได้ถูกเปลี่ยนแปลง:
-${formattedScheduledPickup !== '-' ? `วันเวลานัดรับ: ${formattedScheduledPickup}` : ''}
-${formattedDate !== '-' ? `วันที่รับเครื่อง: ${formattedDate}` : ''}
-${formattedTime !== '-' ? `เวลารับเครื่อง: ${formattedTime}` : ''}
+${appointmentDetails.length > 0 ? appointmentDetails.join('\n') : 'กรุณาติดต่อร้านเพื่อยืนยันวันเวลานัดรับ'}
 
 กรุณามารับเครื่องตามวันเวลาที่นัดหมายใหม่
 หากมีข้อสงสัย กรุณาติดต่อเรา`;
