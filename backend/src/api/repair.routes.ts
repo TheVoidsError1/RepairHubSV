@@ -484,6 +484,29 @@ router.post('/', async (req, res) => {
         },
       });
       repairNumber = `REP-${currentYear}-${String(count + 1).padStart(3, '0')}`;
+      
+      // Check if repairNumber already exists (handle race condition)
+      let existingRepair = await repairRepository.findOne({
+        where: { repairNumber },
+      });
+      let retryCount = 0;
+      const maxRetries = 10;
+      while (existingRepair && retryCount < maxRetries) {
+        retryCount++;
+        const newCount = await repairRepository.count({
+          where: {
+            createdAt: Between(startOfYear, endOfYear),
+          },
+        });
+        repairNumber = `REP-${currentYear}-${String(newCount + retryCount + 1).padStart(3, '0')}`;
+        existingRepair = await repairRepository.findOne({
+          where: { repairNumber },
+        });
+      }
+      if (existingRepair) {
+        // Fallback: use timestamp if still duplicate
+        repairNumber = `REP-${currentYear}-${String(Date.now()).slice(-6)}`;
+      }
     }
 
     // Parse dates
@@ -569,7 +592,7 @@ router.post('/', async (req, res) => {
       serialNumber: serialNumber || undefined,
       deviceColor: deviceColor || color || undefined,
       screenLockCode: screenLockCode || undefined,
-      problemDescription: problemDescription || problemSymptoms || '',
+      problemDescription: (problemDescription || problemSymptoms || 'ไม่มีรายละเอียด').trim(),
       problemSymptoms: problemSymptoms || undefined,
       diagnosis: diagnosis || undefined,
       repairNotes: repairNotes || undefined,
@@ -594,7 +617,24 @@ router.post('/', async (req, res) => {
     };
 
     const newRepair = repairRepository.create(repairData);
-    const savedRepair = await repairRepository.save(newRepair);
+    let savedRepair;
+    try {
+      savedRepair = await repairRepository.save(newRepair);
+    } catch (saveError: any) {
+      console.error('Error saving repair:', saveError);
+      // If it's a unique constraint error for repairNumber, try to generate a new one
+      if (saveError?.code === '23505' && saveError?.constraint?.includes('repairNumber')) {
+        console.log(`[Repair] RepairNumber ${repairNumber} already exists, generating new one...`);
+        const currentYear = new Date().getFullYear();
+        const timestamp = Date.now();
+        repairNumber = `REP-${currentYear}-${String(timestamp).slice(-6)}`;
+        repairData.repairNumber = repairNumber;
+        const retryRepair = repairRepository.create(repairData);
+        savedRepair = await repairRepository.save(retryRepair);
+      } else {
+        throw saveError;
+      }
+    }
     
     // Reduce stock for selected parts
     const partsToDeduct: string[] = [];
@@ -736,6 +776,31 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Create repair error:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      // Check for specific database errors
+      if ((error as any).code === '23505') {
+        // Unique constraint violation
+        const constraint = (error as any).constraint || 'unknown';
+        console.error(`Unique constraint violation: ${constraint}`);
+        return res.status(409).json({
+          status: 'error',
+          message: 'Repair number already exists. Please try again.',
+          error: `Duplicate entry: ${constraint}`,
+        });
+      }
+      if ((error as any).code === '23503') {
+        // Foreign key constraint violation
+        console.error('Foreign key constraint violation');
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid reference. Please check customer or part IDs.',
+          error: error.message,
+        });
+      }
+    }
     res.status(500).json({
       status: 'error',
       message: 'Failed to create repair',
