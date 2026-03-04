@@ -42,13 +42,10 @@ interface StatusTemplate {
 // สร้าง STATUS_LABELS จาก templates ที่ดึงมา (จะอัพเดทเมื่อ fetch templates)
 const getStatusLabels = (templates: Record<string, StatusTemplate>): Record<string, { th: string; en: string }> => {
   const labels: Record<string, { th: string; en: string }> = {
-    pending: { th: "รอดำเนินการ", en: "Pending" },
     "in-progress": { th: "กำลังซ่อม", en: "In Progress" },
-    waiting_parts: { th: "รออะไหล่", en: "Waiting Parts" },
     completed: { th: "ซ่อมเสร็จแล้ว", en: "Completed" },
     cancelled: { th: "ยกเลิกแล้ว", en: "Cancelled" },
     "picked-up": { th: "รับเครื่องแล้ว", en: "Picked Up" },
-    scheduled_pickup: { th: "นัดรับ", en: "Scheduled Pickup" },
   };
   
   // เพิ่มสถานะจาก templates ที่ดึงมา (ถ้ามีสถานะใหม่ที่ยังไม่มีใน labels)

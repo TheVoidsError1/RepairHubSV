@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRepairs, type RepairItem } from "@/contexts/RepairsContext";
+import { getRepairStatusDisplayLabel } from "@/lib/repairStatus";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 import { repairItemToBillData } from "@/types/repairOrder";
@@ -262,14 +263,7 @@ const CustomerBills = () => {
                                   }`}
                                 >
                                   {item.status === "completed"
-                                    ? language === "th" ? "เสร็จสิ้น" : "Completed"
-                                    : item.status === "picked-up"
-                                    ? language === "th" ? "รับเครื่องแล้ว" : "Picked Up"
-                                    : item.status === "in-progress"
-                                    ? language === "th" ? "กำลังซ่อม" : "In Progress"
-                                    : item.status === "pending"
-                                    ? language === "th" ? "รอดำเนินการ" : "Pending"
-                                    : item.status}
+                                    {getRepairStatusDisplayLabel(item.status as any, language)}
                                 </span>
                               </td>
                                <td className="p-3">

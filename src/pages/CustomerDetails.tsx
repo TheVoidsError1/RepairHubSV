@@ -28,6 +28,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSocket } from "@/contexts/SocketContext";
 import { apiClient } from "@/lib/api";
+import { getRepairStatusDisplayLabel } from "@/lib/repairStatus";
 import {
   ArrowLeft,
   Calendar,
@@ -224,13 +225,7 @@ const CustomerDetails = () => {
   };
 
   const getStatusLabel = (status: string) => {
-    const labels: Record<string, { th: string; en: string }> = {
-      pending: { th: "รอดำเนินการ", en: "Pending" },
-      "in-progress": { th: "กำลังซ่อม", en: "In Progress" },
-      completed: { th: "เสร็จสิ้น", en: "Completed" },
-      cancelled: { th: "ยกเลิก", en: "Cancelled" },
-    };
-    return language === "th" ? labels[status]?.th : labels[status]?.en || status;
+    return getRepairStatusDisplayLabel(status as any, language);
   };
 
   if (loading) {

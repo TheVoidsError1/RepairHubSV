@@ -29,6 +29,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useRepairs, type RepairItem } from "@/contexts/RepairsContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
+import { getRepairStatusLabel } from "@/lib/repairStatus";
 import { type RepairOrderData } from "@/types/repairOrder";
 import { ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -651,16 +652,16 @@ const Repairs = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="in-progress">
-                              {language === "th" ? "กำลังซ่อม" : t("inProgress")}
+                              {getRepairStatusLabel("in-progress", language)}
                             </SelectItem>
                             <SelectItem value="completed">
-                              {language === "th" ? "ซ่อมเสร็จแล้ว" : t("completed")}
+                              {getRepairStatusLabel("completed", language)}
                             </SelectItem>
                             <SelectItem value="picked-up">
-                              {language === "th" ? "รับเครื่องแล้ว" : t("pickedUp")}
+                              {getRepairStatusLabel("picked-up", language)}
                             </SelectItem>
                             <SelectItem value="cancelled">
-                              {language === "th" ? "ยกเลิกงานซ่อม" : t("cancelled")}
+                              {getRepairStatusLabel("cancelled", language)}
                             </SelectItem>
                           </SelectContent>
                         </Select>
@@ -734,16 +735,16 @@ const Repairs = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="in-progress">
-                          {language === "th" ? "กำลังซ่อม" : t("inProgress")}
+                          {getRepairStatusLabel("in-progress", language)}
                         </SelectItem>
                         <SelectItem value="completed">
-                          {language === "th" ? "ซ่อมเสร็จแล้ว" : t("completed")}
+                          {getRepairStatusLabel("completed", language)}
                         </SelectItem>
                         <SelectItem value="picked-up">
-                          {language === "th" ? "รับเครื่องแล้ว" : t("pickedUp")}
+                          {getRepairStatusLabel("picked-up", language)}
                         </SelectItem>
                         <SelectItem value="cancelled">
-                          {language === "th" ? "ยกเลิกงานซ่อม" : t("cancelled")}
+                          {getRepairStatusLabel("cancelled", language)}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -928,21 +929,7 @@ const Repairs = () => {
                         statusStyles[editingStatus]
                       }`}
                     >
-                      {editingStatus === "in-progress"
-                        ? (language === "th" ? "กำลังซ่อม" : t("inProgress"))
-                        : editingStatus === "completed"
-                        ? language === "th"
-                          ? "ซ่อมเสร็จแล้ว"
-                          : t("completed")
-                        : editingStatus === "picked-up"
-                        ? language === "th"
-                          ? "รับเครื่องแล้ว"
-                          : t("pickedUp")
-                        : editingStatus === "cancelled"
-                        ? language === "th"
-                          ? "ยกเลิกงานซ่อม"
-                          : t("cancelled")
-                        : t("pending")}
+                      {getRepairStatusLabel(editingStatus as any, language)}
                     </span>
                     <Select
                       value={editingStatus}
@@ -962,24 +949,16 @@ const Repairs = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="in-progress">
-                          {language === "th"
-                            ? "กำลังซ่อม"
-                            : t("inProgress")}
+                          {getRepairStatusLabel("in-progress", language)}
                         </SelectItem>
                         <SelectItem value="completed">
-                          {language === "th"
-                            ? "ซ่อมเสร็จแล้ว"
-                            : t("completed")}
+                          {getRepairStatusLabel("completed", language)}
                         </SelectItem>
                         <SelectItem value="picked-up">
-                          {language === "th"
-                            ? "รับเครื่องแล้ว"
-                            : t("pickedUp")}
+                          {getRepairStatusLabel("picked-up", language)}
                         </SelectItem>
                         <SelectItem value="cancelled">
-                          {language === "th"
-                            ? "ยกเลิกงานซ่อม"
-                            : t("cancelled")}
+                          {getRepairStatusLabel("cancelled", language)}
                         </SelectItem>
                       </SelectContent>
                     </Select>

@@ -18,18 +18,6 @@ interface StatusTemplate {
 
 // เทมเพลตข้อความเริ่มต้น
 const DEFAULT_STATUS_TEMPLATES: Record<string, StatusTemplate> = {
-  'pending': {
-    status: 'pending',
-    template: `🔔 แจ้งเตือน: งานซ่อมของคุณกำลังรอดำเนินการ
-
-สวัสดีคุณ {customerName}
-หมายเลขงานซ่อม: {repairNumber}
-อุปกรณ์: {deviceType}
-สถานะ: รอดำเนินการ
-
-เราได้รับงานซ่อมของคุณเรียบร้อยแล้ว และจะเริ่มดำเนินการในไม่ช้า`,
-    description: 'ข้อความเมื่อสถานะเป็นรอดำเนินการ',
-  },
   'in-progress': {
     status: 'in-progress',
     template: `🔧 แจ้งเตือน: เริ่มซ่อมแล้ว!
@@ -40,20 +28,9 @@ const DEFAULT_STATUS_TEMPLATES: Record<string, StatusTemplate> = {
 สถานะ: กำลังซ่อม
 
 ช่างของเรากำลังดำเนินการซ่อมอุปกรณ์ของคุณอยู่
+วันเวลานัดรับ: {scheduledPickupTime}
 {additionalInfo}`,
     description: 'ข้อความเมื่อสถานะเป็นกำลังซ่อม',
-  },
-  'waiting_parts': {
-    status: 'waiting_parts',
-    template: `⏳ แจ้งเตือน: รออะไหล่
-
-สวัสดีคุณ {customerName}
-หมายเลขงานซ่อม: {repairNumber}
-อุปกรณ์: {deviceType}
-สถานะ: รออะไหล่
-
-งานซ่อมของคุณอยู่ระหว่างรออะไหล่ เราจะแจ้งให้ทราบเมื่อได้รับอะไหล่แล้ว`,
-    description: 'ข้อความเมื่อสถานะเป็นรออะไหล่',
   },
   'completed': {
     status: 'completed',
@@ -92,23 +69,6 @@ const DEFAULT_STATUS_TEMPLATES: Record<string, StatusTemplate> = {
 ขอบคุณที่ใช้บริการของเรา 🙏
 หากมีปัญหาใด ๆ กรุณาติดต่อเราได้ทันที`,
     description: 'ข้อความเมื่อสถานะเป็นรับเครื่องแล้ว',
-  },
-  'scheduled_pickup': {
-    status: 'scheduled_pickup',
-    template: `📅 แจ้งเตือน: นัดรับเครื่อง
-
-สวัสดีคุณ {customerName}
-หมายเลขงานซ่อม: {repairNumber}
-อุปกรณ์: {deviceType}
-สถานะ: นัดรับเครื่อง
-
-วันที่รับเครื่อง: {receiveDate}
-เวลารับเครื่อง: {receiveTime}
-วันเวลานัดรับ: {scheduledPickupTime}
-
-กรุณามารับเครื่องตามวันเวลาที่นัดหมาย
-{additionalInfo}`,
-    description: 'ข้อความเมื่อสถานะเป็นนัดรับเครื่อง',
   },
 };
 

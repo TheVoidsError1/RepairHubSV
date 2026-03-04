@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/pagination";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRepairs, type RepairItem } from "@/contexts/RepairsContext";
+import { getRepairStatusLabel } from "@/lib/repairStatus";
 import { cn } from "@/lib/utils";
 import { repairItemToBillData } from "@/types/repairOrder";
 import { Input } from "@/components/ui/input";
@@ -208,13 +209,13 @@ const RepairBill = () => {
                       {language === "th" ? "ทั้งหมด" : "All"}
                     </SelectItem>
                     <SelectItem value="pending">
-                      {language === "th" ? "รอดำเนินการ" : "Pending"}
+                      {getRepairStatusLabel("pending", language)}
                     </SelectItem>
                     <SelectItem value="in-progress">
-                      {language === "th" ? "กำลังซ่อม" : "In Progress"}
+                      {getRepairStatusLabel("in-progress", language)}
                     </SelectItem>
                     <SelectItem value="completed">
-                      {language === "th" ? "เสร็จสิ้น" : "Completed"}
+                      {getRepairStatusLabel("completed", language)}
                     </SelectItem>
                   </SelectContent>
                 </Select>

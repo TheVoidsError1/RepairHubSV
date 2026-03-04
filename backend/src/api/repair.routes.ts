@@ -752,14 +752,14 @@ router.post('/', async (req, res) => {
             customerData.lineIdRes,
             customerName,
             repairNumber,
-            'in-progress', // สถานะกำลังซ่อม
+            RepairStatus.IN_PROGRESS, // สถานะกำลังซ่อม
             deviceType,
             repairWithRelations.problemSymptoms || repairWithRelations.problemDescription, // Optional additional info
             repairWithRelations.receiveDate,
             repairWithRelations.receiveTime,
             repairWithRelations.scheduledPickupTime
           );
-          console.log(`[LINE] Notification sent for new repair ${repairNumber} (in-progress) to customer ${customerName}`);
+          console.log(`[LINE] Notification sent for new repair ${repairNumber} (${RepairStatus.IN_PROGRESS}) to customer ${customerName}`);
         }
       } catch (lineError) {
         // Don't fail the request if LINE notification fails

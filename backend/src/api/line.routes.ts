@@ -51,13 +51,10 @@ async function handleCheckStatus(
 
     // สร้างข้อความแสดงสถานะงานซ่อมใบล่าสุด
     const statusLabels: Record<string, string> = {
-      'pending': '⏳ รอดำเนินการ',
       'in-progress': '🔧 กำลังซ่อม',
-      'waiting_parts': '⏸️ รออะไหล่',
       'completed': '✅ ซ่อมเสร็จแล้ว',
       'cancelled': '❌ ยกเลิกแล้ว',
       'picked-up': '📦 รับเครื่องแล้ว',
-      'scheduled_pickup': '📅 นัดรับ',
     };
     const statusLabel = statusLabels[latestActiveRepair.status] || latestActiveRepair.status;
 
@@ -156,13 +153,10 @@ async function handleHistory(
     message += `📦 งานซ่อมล่าสุด (${recentRepairs.length} รายการ):\n\n`;
 
     const statusLabels: Record<string, string> = {
-      'pending': '⏳ รอดำเนินการ',
       'in-progress': '🔧 กำลังซ่อม',
-      'waiting_parts': '⏸️ รออะไหล่',
       'completed': '✅ ซ่อมเสร็จแล้ว',
       'cancelled': '❌ ยกเลิกแล้ว',
       'picked-up': '📦 รับเครื่องแล้ว',
-      'scheduled_pickup': '📅 นัดรับ',
     };
 
     for (let i = 0; i < recentRepairs.length; i++) {
@@ -1559,7 +1553,7 @@ router.put('/status-templates/:status', async (req, res) => {
       return res.status(404).json({
         status: 'error',
         message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-        availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up', 'scheduled_pickup'],
+        availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up'],
       });
     }
 
@@ -1606,7 +1600,7 @@ router.post('/status-templates/reset', async (req, res) => {
         return res.status(404).json({
           status: 'error',
           message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-          availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up', 'scheduled_pickup'],
+          availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up'],
         });
       }
     }

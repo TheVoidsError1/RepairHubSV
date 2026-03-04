@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRepairs, type RepairItem } from "@/contexts/RepairsContext";
+import { getRepairStatusDisplayLabel } from "@/lib/repairStatus";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -612,13 +613,7 @@ const RepairBillManagement = () => {
                                   : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
                               )}
                             >
-                              {item.status === "completed"
-                                ? language === "th" ? "เสร็จสิ้น" : "Completed"
-                                : item.status === "picked-up"
-                                ? language === "th" ? "รับเครื่องแล้ว" : "Picked Up"
-                                : item.status === "in-progress" || item.status === "pending"
-                                ? language === "th" ? "กำลังซ่อม" : "In Progress"
-                                : item.status}
+                              {getRepairStatusDisplayLabel(item.status as any, language)}
                             </span>
                           </td>
                           <td className="p-3">
