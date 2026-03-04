@@ -754,7 +754,10 @@ router.post('/', async (req, res) => {
             repairNumber,
             'in-progress', // สถานะกำลังซ่อม
             deviceType,
-            repairWithRelations.problemSymptoms || repairWithRelations.problemDescription // Optional additional info
+            repairWithRelations.problemSymptoms || repairWithRelations.problemDescription, // Optional additional info
+            repairWithRelations.receiveDate,
+            repairWithRelations.receiveTime,
+            repairWithRelations.scheduledPickupTime
           );
           console.log(`[LINE] Notification sent for new repair ${repairNumber} (in-progress) to customer ${customerName}`);
         }
@@ -843,6 +846,11 @@ router.put('/:id', async (req, res) => {
 
     // Store old status for comparison (to send LINE notification)
     const oldStatus = repair.status;
+
+    // Store old appointment date/time for comparison (to send LINE notification)
+    const oldScheduledPickupTime = repair.scheduledPickupTime ? new Date(repair.scheduledPickupTime) : null;
+    const oldReceiveDate = repair.receiveDate ? new Date(repair.receiveDate) : null;
+    const oldReceiveTime = repair.receiveTime || null;
 
     // Get old part IDs before updating (for stock restoration)
     const oldPartIds: string[] = [];
@@ -1246,7 +1254,10 @@ router.put('/:id', async (req, res) => {
               repairWithCustomer.repairNumber,
               updatedRepair.status,
               deviceType,
-              req.body.repairNotes // Optional additional info
+              req.body.repairNotes, // Optional additional info
+              repairWithCustomer.receiveDate,
+              repairWithCustomer.receiveTime,
+              repairWithCustomer.scheduledPickupTime
             );
             console.log(`[LINE] Notification sent for repair ${repairWithCustomer.repairNumber} status change to ${updatedRepair.status}`);
           }
@@ -1256,6 +1267,99 @@ router.put('/:id', async (req, res) => {
       } catch (lineError) {
         // Don't fail the request if LINE notification fails
         console.error('[LINE] Error sending notification:', lineError);
+      }
+    }
+    
+    // Check if appointment date/time changed and send LINE notification
+    const newScheduledPickupTime = updatedRepair.scheduledPickupTime ? new Date(updatedRepair.scheduledPickupTime) : null;
+    const newReceiveDate = updatedRepair.receiveDate ? new Date(updatedRepair.receiveDate) : null;
+    const newReceiveTime = updatedRepair.receiveTime || null;
+    
+    // Compare dates/times (handle null cases)
+    const scheduledPickupTimeChanged = 
+      (oldScheduledPickupTime?.getTime() !== newScheduledPickupTime?.getTime()) ||
+      (oldScheduledPickupTime === null && newScheduledPickupTime !== null) ||
+      (oldScheduledPickupTime !== null && newScheduledPickupTime === null);
+    
+    const receiveDateChanged = 
+      (oldReceiveDate?.getTime() !== newReceiveDate?.getTime()) ||
+      (oldReceiveDate === null && newReceiveDate !== null) ||
+      (oldReceiveDate !== null && newReceiveDate === null);
+    
+    const receiveTimeChanged = oldReceiveTime !== newReceiveTime;
+    
+    const appointmentChanged = scheduledPickupTimeChanged || receiveDateChanged || receiveTimeChanged;
+    
+    if (appointmentChanged && (req.body.scheduledPickupTime !== undefined || req.body.receiveDate !== undefined || req.body.receiveTime !== undefined)) {
+      try {
+        // Load customer data with lineIdRes
+        const repairWithCustomer = await repairRepository.findOne({
+          where: { id: updatedRepair.id },
+          relations: ['customer'],
+        });
+
+        if (repairWithCustomer?.customer?.lineIdRes) {
+          const lineService = getLineNotificationService();
+          if (lineService) {
+            const customerName = repairWithCustomer.customer.fullName || 
+                                `${repairWithCustomer.customer.firstName} ${repairWithCustomer.customer.lastName || ''}`.trim();
+            // ใช้ deviceModel หรือ deviceType เป็น fallback
+            const deviceType = repairWithCustomer.deviceModel || repairWithCustomer.deviceType;
+
+            // Format date and time for display
+            let formattedDate = '-';
+            let formattedTime = '-';
+            let formattedScheduledPickup = '-';
+            
+            if (repairWithCustomer.receiveDate) {
+              formattedDate = new Date(repairWithCustomer.receiveDate).toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+            }
+            
+            if (repairWithCustomer.receiveTime) {
+              formattedTime = repairWithCustomer.receiveTime;
+            }
+            
+            if (repairWithCustomer.scheduledPickupTime) {
+              formattedScheduledPickup = new Date(repairWithCustomer.scheduledPickupTime).toLocaleString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            }
+
+            // Create notification message for appointment change
+            const appointmentMessage = `📅 แจ้งเตือน: เปลี่ยนแปลงวันเวลานัดรับเครื่อง
+
+สวัสดีคุณ ${customerName}
+หมายเลขงานซ่อม: ${repairWithCustomer.repairNumber}
+อุปกรณ์: ${deviceType}
+
+วันเวลานัดรับเครื่องได้ถูกเปลี่ยนแปลง:
+${formattedScheduledPickup !== '-' ? `วันเวลานัดรับ: ${formattedScheduledPickup}` : ''}
+${formattedDate !== '-' ? `วันที่รับเครื่อง: ${formattedDate}` : ''}
+${formattedTime !== '-' ? `เวลารับเครื่อง: ${formattedTime}` : ''}
+
+กรุณามารับเครื่องตามวันเวลาที่นัดหมายใหม่
+หากมีข้อสงสัย กรุณาติดต่อเรา`;
+
+            await lineService.sendCustomMessage(
+              repairWithCustomer.customer.lineIdRes,
+              appointmentMessage
+            );
+            console.log(`[LINE] Appointment change notification sent for repair ${repairWithCustomer.repairNumber}`);
+          }
+        } else {
+          console.log(`[LINE] Customer does not have LINE User ID, skipping appointment change notification`);
+        }
+      } catch (lineError) {
+        // Don't fail the request if LINE notification fails
+        console.error('[LINE] Error sending appointment change notification:', lineError);
       }
     }
     

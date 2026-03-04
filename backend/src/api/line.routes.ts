@@ -57,6 +57,7 @@ async function handleCheckStatus(
       'completed': '✅ ซ่อมเสร็จแล้ว',
       'cancelled': '❌ ยกเลิกแล้ว',
       'picked-up': '📦 รับเครื่องแล้ว',
+      'scheduled_pickup': '📅 นัดรับ',
     };
     const statusLabel = statusLabels[latestActiveRepair.status] || latestActiveRepair.status;
 
@@ -161,6 +162,7 @@ async function handleHistory(
       'completed': '✅ ซ่อมเสร็จแล้ว',
       'cancelled': '❌ ยกเลิกแล้ว',
       'picked-up': '📦 รับเครื่องแล้ว',
+      'scheduled_pickup': '📅 นัดรับ',
     };
 
     for (let i = 0; i < recentRepairs.length; i++) {
@@ -1557,7 +1559,7 @@ router.put('/status-templates/:status', async (req, res) => {
       return res.status(404).json({
         status: 'error',
         message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-        availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up'],
+        availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up', 'scheduled_pickup'],
       });
     }
 
@@ -1604,7 +1606,7 @@ router.post('/status-templates/reset', async (req, res) => {
         return res.status(404).json({
           status: 'error',
           message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-          availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up'],
+          availableStatuses: ['pending', 'in-progress', 'waiting_parts', 'completed', 'cancelled', 'picked-up', 'scheduled_pickup'],
         });
       }
     }

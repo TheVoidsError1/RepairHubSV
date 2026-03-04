@@ -18,6 +18,7 @@ export enum RepairStatus {
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   PICKED_UP = 'picked-up',
+  SCHEDULED_PICKUP = 'scheduled_pickup',
 }
 
 export enum ServiceType {

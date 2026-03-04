@@ -93,6 +93,23 @@ const DEFAULT_STATUS_TEMPLATES: Record<string, StatusTemplate> = {
 หากมีปัญหาใด ๆ กรุณาติดต่อเราได้ทันที`,
     description: 'ข้อความเมื่อสถานะเป็นรับเครื่องแล้ว',
   },
+  'scheduled_pickup': {
+    status: 'scheduled_pickup',
+    template: `📅 แจ้งเตือน: นัดรับเครื่อง
+
+สวัสดีคุณ {customerName}
+หมายเลขงานซ่อม: {repairNumber}
+อุปกรณ์: {deviceType}
+สถานะ: นัดรับเครื่อง
+
+วันที่รับเครื่อง: {receiveDate}
+เวลารับเครื่อง: {receiveTime}
+วันเวลานัดรับ: {scheduledPickupTime}
+
+กรุณามารับเครื่องตามวันเวลาที่นัดหมาย
+{additionalInfo}`,
+    description: 'ข้อความเมื่อสถานะเป็นนัดรับเครื่อง',
+  },
 };
 
 // เก็บเทมเพลตที่ผู้ใช้กำหนดเอง (in-memory)
@@ -527,7 +544,10 @@ export class LineNotificationService {
     repairNumber: string,
     status: string,
     deviceType: string,
-    additionalInfo?: string
+    additionalInfo?: string,
+    receiveDate?: Date | string,
+    receiveTime?: string,
+    scheduledPickupTime?: Date | string
   ): string {
     // ดู custom templates ที่มี
     console.log('[LINE Template] Creating message for status:', status);
@@ -555,6 +575,37 @@ export class LineNotificationService {
       .replace(/{repairNumber}/g, repairNumber)
       .replace(/{deviceType}/g, deviceType)
       .replace(/{status}/g, status);
+
+    // จัดการวันที่และเวลา
+    if (receiveDate) {
+      const dateStr = receiveDate instanceof Date 
+        ? receiveDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+        : receiveDate;
+      message = message.replace(/{receiveDate}/g, dateStr);
+    } else {
+      message = message.replace(/{receiveDate}/g, '-');
+    }
+
+    if (receiveTime) {
+      message = message.replace(/{receiveTime}/g, receiveTime);
+    } else {
+      message = message.replace(/{receiveTime}/g, '-');
+    }
+
+    if (scheduledPickupTime) {
+      const pickupStr = scheduledPickupTime instanceof Date
+        ? scheduledPickupTime.toLocaleString('th-TH', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : scheduledPickupTime;
+      message = message.replace(/{scheduledPickupTime}/g, pickupStr);
+    } else {
+      message = message.replace(/{scheduledPickupTime}/g, '-');
+    }
 
     // จัดการ additionalInfo
     if (additionalInfo) {
@@ -642,7 +693,10 @@ export class LineNotificationService {
     repairNumber: string,
     newStatus: string,
     deviceType: string,
-    additionalInfo?: string
+    additionalInfo?: string,
+    receiveDate?: Date | string,
+    receiveTime?: string,
+    scheduledPickupTime?: Date | string
   ): Promise<boolean> {
     if (!customerLineId) {
       console.warn('[LINE] Customer does not have LINE ID, skipping notification');
@@ -654,7 +708,10 @@ export class LineNotificationService {
       repairNumber,
       newStatus,
       deviceType,
-      additionalInfo
+      additionalInfo,
+      receiveDate,
+      receiveTime,
+      scheduledPickupTime
     );
 
     return await this.sendNotification(customerLineId, message);

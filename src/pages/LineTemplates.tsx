@@ -39,19 +39,38 @@ interface StatusTemplate {
   description: string;
 }
 
-const STATUS_LABELS: Record<string, { th: string; en: string }> = {
-  pending: { th: "รอดำเนินการ", en: "Pending" },
-  "in-progress": { th: "กำลังซ่อม", en: "In Progress" },
-  waiting_parts: { th: "รออะไหล่", en: "Waiting Parts" },
-  completed: { th: "ซ่อมเสร็จแล้ว", en: "Completed" },
-  cancelled: { th: "ยกเลิกแล้ว", en: "Cancelled" },
-  "picked-up": { th: "รับเครื่องแล้ว", en: "Picked Up" },
+// สร้าง STATUS_LABELS จาก templates ที่ดึงมา (จะอัพเดทเมื่อ fetch templates)
+const getStatusLabels = (templates: Record<string, StatusTemplate>): Record<string, { th: string; en: string }> => {
+  const labels: Record<string, { th: string; en: string }> = {
+    pending: { th: "รอดำเนินการ", en: "Pending" },
+    "in-progress": { th: "กำลังซ่อม", en: "In Progress" },
+    waiting_parts: { th: "รออะไหล่", en: "Waiting Parts" },
+    completed: { th: "ซ่อมเสร็จแล้ว", en: "Completed" },
+    cancelled: { th: "ยกเลิกแล้ว", en: "Cancelled" },
+    "picked-up": { th: "รับเครื่องแล้ว", en: "Picked Up" },
+    scheduled_pickup: { th: "นัดรับ", en: "Scheduled Pickup" },
+  };
+  
+  // เพิ่มสถานะจาก templates ที่ดึงมา (ถ้ามีสถานะใหม่ที่ยังไม่มีใน labels)
+  Object.keys(templates).forEach(status => {
+    if (!labels[status]) {
+      // สร้าง label จาก status key
+      const statusKey = status.replace(/_/g, ' ').replace(/-/g, ' ');
+      labels[status] = {
+        th: statusKey,
+        en: statusKey.charAt(0).toUpperCase() + statusKey.slice(1),
+      };
+    }
+  });
+  
+  return labels;
 };
 
 const LineTemplates = () => {
   const { language } = useLanguage();
   const isTh = language === "th";
   const [templates, setTemplates] = useState<Record<string, StatusTemplate>>({});
+  const [statusLabels, setStatusLabels] = useState<Record<string, { th: string; en: string }>>({});
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>("pending");
   const [editingTemplate, setEditingTemplate] = useState<string>("");
@@ -74,6 +93,9 @@ const LineTemplates = () => {
       const response = await apiClient.getLineStatusTemplates();
       if (response.status === "success" && response.data) {
         setTemplates(response.data);
+        // สร้าง status labels จาก templates ที่ดึงมา
+        const labels = getStatusLabels(response.data);
+        setStatusLabels(labels);
         // ตั้งค่า template ที่เลือก
         if (response.data[selectedStatus]) {
           setEditingTemplate(response.data[selectedStatus].template);
@@ -134,8 +156,8 @@ const LineTemplates = () => {
       if (response.status === "success") {
         toast.success(
           isTh
-            ? `รีเซ็ตเทมเพลต${status ? `สำหรับสถานะ ${STATUS_LABELS[status]?.th || status}` : "ทั้งหมด"}สำเร็จ`
-            : `Template${status ? ` for ${STATUS_LABELS[status]?.en || status}` : "s"} reset successfully`
+            ? `รีเซ็ตเทมเพลต${status ? `สำหรับสถานะ ${statusLabels[status]?.th || status}` : "ทั้งหมด"}สำเร็จ`
+            : `Template${status ? ` for ${statusLabels[status]?.en || status}` : "s"} reset successfully`
         );
         await fetchTemplates();
       } else {
@@ -202,7 +224,7 @@ const LineTemplates = () => {
       .replace(/{customerName}/g, testData.customerName)
       .replace(/{repairNumber}/g, testData.repairNumber)
       .replace(/{deviceType}/g, testData.deviceType)
-      .replace(/{status}/g, STATUS_LABELS[selectedStatus]?.th || selectedStatus)
+      .replace(/{status}/g, statusLabels[selectedStatus]?.th || selectedStatus)
       .replace(
         /{additionalInfo}/g,
         testData.additionalInfo ? `หมายเหตุ: ${testData.additionalInfo}\n` : ""
@@ -231,7 +253,7 @@ const LineTemplates = () => {
           {/* Template Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(templates).map(([status, template]) => {
-              const label = STATUS_LABELS[status];
+              const label = statusLabels[status];
               return (
                 <Card key={status} className="hover:shadow-md transition-shadow">
                   <CardHeader>
@@ -314,7 +336,7 @@ const LineTemplates = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                        {Object.entries(statusLabels).map(([status, label]) => (
                           <SelectItem key={status} value={status}>
                             {isTh ? label.th : label.en}
                           </SelectItem>
@@ -539,6 +561,30 @@ const LineTemplates = () => {
                       : "- Additional info (will show as 'Note: ...' when available)"}
                   </span>
                 </div>
+                <div>
+                  <code className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {"{receiveDate}"}
+                  </code>
+                  <span className="ml-2">
+                    {isTh ? "- วันที่รับเครื่อง" : "- Receive date"}
+                  </span>
+                </div>
+                <div>
+                  <code className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {"{receiveTime}"}
+                  </code>
+                  <span className="ml-2">
+                    {isTh ? "- เวลารับเครื่อง" : "- Receive time"}
+                  </span>
+                </div>
+                <div>
+                  <code className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {"{scheduledPickupTime}"}
+                  </code>
+                  <span className="ml-2">
+                    {isTh ? "- วันเวลานัดรับเครื่อง" : "- Scheduled pickup time"}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -551,10 +597,10 @@ const LineTemplates = () => {
           <DialogHeader>
             <DialogTitle>
               {isTh ? "แก้ไขเทมเพลต" : "Edit Template"} -{" "}
-              {STATUS_LABELS[selectedStatus]
+              {statusLabels[selectedStatus]
                 ? isTh
-                  ? STATUS_LABELS[selectedStatus].th
-                  : STATUS_LABELS[selectedStatus].en
+                  ? statusLabels[selectedStatus].th
+                  : statusLabels[selectedStatus].en
                 : selectedStatus}
             </DialogTitle>
             <DialogDescription>
