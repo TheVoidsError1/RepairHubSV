@@ -527,7 +527,9 @@ router.post('/', async (req, res) => {
     if (selectedPartIds && Array.isArray(selectedPartIds) && selectedPartIds.length > 0) {
       try {
         const partRepository = AppDataSource.getRepository(Part);
-        const parts = await partRepository.findByIds(selectedPartIds);
+        const parts = await partRepository.find({
+          where: { id: In(selectedPartIds) }
+        });
         
         // นับจำนวนแต่ละ part (กรณีเลือก part เดียวกันหลายครั้ง)
         const partCounts: Record<string, number> = {};
@@ -885,7 +887,9 @@ router.put('/:id', async (req, res) => {
           
           if (partIdsToCalculate.length > 0) {
             const partRepository = AppDataSource.getRepository(Part);
-            const parts = await partRepository.findByIds(partIdsToCalculate);
+            const parts = await partRepository.find({
+              where: { id: In(partIdsToCalculate) }
+            });
             
             // นับจำนวนแต่ละ part
             const partCounts: Record<string, number> = {};
