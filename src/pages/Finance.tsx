@@ -343,7 +343,6 @@ const Finance = () => {
           language === "th" ? "รายละเอียด" : "Description",
           language === "th" ? "จำนวนเงิน" : "Amount",
           language === "th" ? "วันที่" : "Date",
-          language === "th" ? "วิธีการชำระ" : "Method",
         ],
         ...filteredTransactions.map(tx => [
           tx.id,
@@ -351,7 +350,6 @@ const Finance = () => {
           language === "th" ? tx.descriptionTh : tx.description,
           `฿${tx.amount.toLocaleString()}`,
           tx.date,
-          language === "th" ? tx.methodTh : tx.method,
         ])
       ];
 
@@ -743,7 +741,6 @@ const Finance = () => {
                     <th>{t("description")}</th>
                     <th>{t("amount")}</th>
                     <th>{t("date")}</th>
-                    <th>{t("method")}</th>
                     <th className="text-center">{language === "th" ? "ดูรายละเอียด" : "Details"}</th>
                   </tr>
                 </thead>
@@ -765,7 +762,6 @@ const Finance = () => {
                             {txn.type === "income" ? "+" : "-"}฿{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td>{txn.date}</td>
-                          <td>{language === "th" ? txn.methodTh : txn.method}</td>
                           <td className="text-center">
                             {isRepairIncome && (
                               <Button
@@ -784,7 +780,7 @@ const Finance = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted-foreground py-8">
+                      <td colSpan={5} className="text-center text-muted-foreground py-8">
                         No transactions found
                       </td>
                     </tr>
@@ -847,7 +843,6 @@ const Finance = () => {
                     <th>{t("description")}</th>
                     <th>{t("amount")}</th>
                     <th>{t("date")}</th>
-                    <th>{t("method")}</th>
                     <th className="text-center">{language === "th" ? "ดูรายละเอียด" : "Details"}</th>
                   </tr>
                 </thead>
@@ -863,7 +858,6 @@ const Finance = () => {
                             +฿{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td>{txn.date}</td>
-                          <td>{language === "th" ? txn.methodTh : txn.method}</td>
                           <td className="text-center">
                             {isRepairIncome && (
                               <Button
@@ -882,7 +876,7 @@ const Finance = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted-foreground py-8">
+                      <td colSpan={5} className="text-center text-muted-foreground py-8">
                         No transactions found
                       </td>
                     </tr>
@@ -945,7 +939,6 @@ const Finance = () => {
                     <th>{t("description")}</th>
                     <th>{t("amount")}</th>
                     <th>{t("date")}</th>
-                    <th>{t("method")}</th>
                     <th className="text-center">{language === "th" ? "ดูรายละเอียด" : "Details"}</th>
                   </tr>
                 </thead>
@@ -959,7 +952,6 @@ const Finance = () => {
                             -฿{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td>{txn.date}</td>
-                          <td>{language === "th" ? txn.methodTh : txn.method}</td>
                           <td className="text-center">
                             {/* No details button for expense transactions */}
                           </td>
@@ -967,7 +959,7 @@ const Finance = () => {
                       ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted-foreground py-8">
+                      <td colSpan={5} className="text-center text-muted-foreground py-8">
                         No transactions found
                       </td>
                     </tr>
