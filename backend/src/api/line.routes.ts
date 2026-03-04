@@ -1553,7 +1553,7 @@ router.put('/status-templates/:status', async (req, res) => {
       return res.status(404).json({
         status: 'error',
         message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-        availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up'],
+        availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up', 'appointment-change'],
       });
     }
 
@@ -1600,7 +1600,7 @@ router.post('/status-templates/reset', async (req, res) => {
         return res.status(404).json({
           status: 'error',
           message: `ไม่พบเทมเพลตสำหรับสถานะ: ${status}`,
-          availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up'],
+          availableStatuses: ['in-progress', 'completed', 'cancelled', 'picked-up', 'appointment-change'],
         });
       }
     }

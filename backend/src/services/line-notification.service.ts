@@ -70,6 +70,22 @@ const DEFAULT_STATUS_TEMPLATES: Record<string, StatusTemplate> = {
 หากมีปัญหาใด ๆ กรุณาติดต่อเราได้ทันที`,
     description: 'ข้อความเมื่อสถานะเป็นรับเครื่องแล้ว',
   },
+  'appointment-change': {
+    status: 'appointment-change',
+    template: `📅 แจ้งเตือน: เปลี่ยนแปลงวันเวลานัดรับเครื่อง
+
+สวัสดีคุณ {customerName}
+หมายเลขงานซ่อม: {repairNumber}
+อุปกรณ์: {deviceType}
+
+วันเวลานัดรับเครื่องได้ถูกเปลี่ยนแปลง:
+{oldAppointmentDetails}
+{newAppointmentDetails}
+
+กรุณามารับเครื่องตามวันเวลาที่นัดหมายใหม่
+หากมีข้อสงสัย กรุณาติดต่อเรา`,
+    description: 'ข้อความเมื่อมีการเปลี่ยนแปลงวันเวลานัดรับเครื่อง',
+  },
 };
 
 // เก็บเทมเพลตที่ผู้ใช้กำหนดเอง (in-memory)
@@ -575,6 +591,126 @@ export class LineNotificationService {
     }
 
     console.log('[LINE Template] Final message preview:', message.substring(0, 150) + '...');
+    return message;
+  }
+
+  /**
+   * สร้างข้อความแจ้งเตือนเมื่อมีการเปลี่ยนแปลงวันเวลานัดรับ
+   */
+  createAppointmentChangeMessage(
+    customerName: string,
+    repairNumber: string,
+    deviceType: string,
+    oldScheduledPickupTime?: Date | null,
+    newScheduledPickupTime?: Date | string | null,
+    oldReceiveDate?: Date | null,
+    newReceiveDate?: Date | string | null,
+    oldReceiveTime?: string | null,
+    newReceiveTime?: string | null
+  ): string {
+    // ใช้เทมเพลตที่ผู้ใช้กำหนด หรือเทมเพลตเริ่มต้น
+    let template = customStatusTemplates['appointment-change'] || DEFAULT_STATUS_TEMPLATES['appointment-change']?.template;
+    
+    if (!template) {
+      console.warn('[LINE Template] ⚠️ No template found for appointment-change');
+      return `แจ้งเตือน: วันเวลานัดรับเครื่องสำหรับงานซ่อม ${repairNumber} ได้ถูกเปลี่ยนแปลง`;
+    }
+
+    // Format วันเวลาเก่า
+    let oldAppointmentDetails = '';
+    if (oldScheduledPickupTime) {
+      const formattedOld = oldScheduledPickupTime instanceof Date
+        ? oldScheduledPickupTime.toLocaleString('th-TH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : String(oldScheduledPickupTime);
+      oldAppointmentDetails = `วันเวลานัดรับ (เดิม): ${formattedOld}`;
+    } else if (oldReceiveDate || oldReceiveTime) {
+      const oldDetails: string[] = [];
+      if (oldReceiveDate) {
+        const formattedOldDate = oldReceiveDate instanceof Date
+          ? oldReceiveDate.toLocaleDateString('th-TH', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          : String(oldReceiveDate);
+        oldDetails.push(formattedOldDate);
+      }
+      if (oldReceiveTime) {
+        oldDetails.push(`เวลา ${oldReceiveTime}`);
+      }
+      if (oldDetails.length > 0) {
+        oldAppointmentDetails = `วันเวลานัดรับ (เดิม): ${oldDetails.join(' ')}`;
+      }
+    }
+
+    // Format วันเวลาใหม่
+    let newAppointmentDetails = '';
+    if (newScheduledPickupTime) {
+      let formattedNew: string;
+      if (newScheduledPickupTime instanceof Date) {
+        formattedNew = newScheduledPickupTime.toLocaleString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } else if (typeof newScheduledPickupTime === 'string') {
+        formattedNew = new Date(newScheduledPickupTime).toLocaleString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } else {
+        formattedNew = String(newScheduledPickupTime);
+      }
+      newAppointmentDetails = `วันเวลานัดรับ (ใหม่): ${formattedNew}`;
+    } else if (newReceiveDate || newReceiveTime) {
+      const newDetails: string[] = [];
+      if (newReceiveDate) {
+        let formattedNewDate: string;
+        if (newReceiveDate instanceof Date) {
+          formattedNewDate = newReceiveDate.toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        } else if (typeof newReceiveDate === 'string') {
+          formattedNewDate = new Date(newReceiveDate).toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        } else {
+          formattedNewDate = String(newReceiveDate);
+        }
+        newDetails.push(formattedNewDate);
+      }
+      if (newReceiveTime) {
+        newDetails.push(`เวลา ${newReceiveTime}`);
+      }
+      if (newDetails.length > 0) {
+        newAppointmentDetails = `วันเวลานัดรับ (ใหม่): ${newDetails.join(' ')}`;
+      }
+    }
+
+    // แทนที่ตัวแปรในเทมเพลต
+    let message = template
+      .replace(/{customerName}/g, customerName)
+      .replace(/{repairNumber}/g, repairNumber)
+      .replace(/{deviceType}/g, deviceType)
+      .replace(/{oldAppointmentDetails}/g, oldAppointmentDetails || 'กรุณาติดต่อร้านเพื่อยืนยันวันเวลานัดรับเดิม')
+      .replace(/{newAppointmentDetails}/g, newAppointmentDetails || 'กรุณาติดต่อร้านเพื่อยืนยันวันเวลานัดรับใหม่');
+
+    console.log('[LINE Template] Appointment change message created');
     return message;
   }
 

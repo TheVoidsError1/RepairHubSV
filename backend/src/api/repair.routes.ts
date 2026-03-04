@@ -1331,45 +1331,18 @@ router.put('/:id', async (req, res) => {
             // ใช้ deviceModel หรือ deviceType เป็น fallback
             const deviceType = repairWithCustomer.deviceModel || repairWithCustomer.deviceType;
 
-            // Format date and time for display
-            const appointmentDetails: string[] = [];
-            
-            if (repairWithCustomer.scheduledPickupTime) {
-              const formattedScheduledPickup = new Date(repairWithCustomer.scheduledPickupTime).toLocaleString('th-TH', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-              appointmentDetails.push(`วันเวลานัดรับ: ${formattedScheduledPickup}`);
-            }
-            
-            if (repairWithCustomer.receiveDate) {
-              const formattedDate = new Date(repairWithCustomer.receiveDate).toLocaleDateString('th-TH', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              });
-              appointmentDetails.push(`วันที่รับเครื่อง: ${formattedDate}`);
-            }
-            
-            if (repairWithCustomer.receiveTime) {
-              appointmentDetails.push(`เวลารับเครื่อง: ${repairWithCustomer.receiveTime}`);
-            }
-
-            // Create notification message for appointment change
-            const appointmentMessage = `📅 แจ้งเตือน: เปลี่ยนแปลงวันเวลานัดรับเครื่อง
-
-สวัสดีคุณ ${customerName}
-หมายเลขงานซ่อม: ${repairWithCustomer.repairNumber}
-อุปกรณ์: ${deviceType}
-
-วันเวลานัดรับเครื่องได้ถูกเปลี่ยนแปลง:
-${appointmentDetails.length > 0 ? appointmentDetails.join('\n') : 'กรุณาติดต่อร้านเพื่อยืนยันวันเวลานัดรับ'}
-
-กรุณามารับเครื่องตามวันเวลาที่นัดหมายใหม่
-หากมีข้อสงสัย กรุณาติดต่อเรา`;
+            // ใช้เทมเพลตสำหรับสร้างข้อความแจ้งเตือน
+            const appointmentMessage = lineService.createAppointmentChangeMessage(
+              customerName,
+              repairWithCustomer.repairNumber,
+              deviceType,
+              oldScheduledPickupTime,
+              repairWithCustomer.scheduledPickupTime,
+              oldReceiveDate,
+              repairWithCustomer.receiveDate,
+              oldReceiveTime,
+              repairWithCustomer.receiveTime
+            );
 
             await lineService.sendCustomMessage(
               repairWithCustomer.customer.lineIdRes,

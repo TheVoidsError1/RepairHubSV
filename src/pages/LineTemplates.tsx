@@ -46,6 +46,7 @@ const getStatusLabels = (templates: Record<string, StatusTemplate>): Record<stri
     completed: { th: "ซ่อมเสร็จแล้ว", en: "Completed" },
     cancelled: { th: "ยกเลิกแล้ว", en: "Cancelled" },
     "picked-up": { th: "รับเครื่องแล้ว", en: "Picked Up" },
+    "appointment-change": { th: "เปลี่ยนแปลงวันเวลานัดรับ", en: "Appointment Change" },
   };
   
   // เพิ่มสถานะจาก templates ที่ดึงมา (ถ้ามีสถานะใหม่ที่ยังไม่มีใน labels)
@@ -217,7 +218,7 @@ const LineTemplates = () => {
 
   // แทนที่ตัวแปรใน template เพื่อแสดง preview
   const getPreview = (template: string) => {
-    return template
+    let preview = template
       .replace(/{customerName}/g, testData.customerName)
       .replace(/{repairNumber}/g, testData.repairNumber)
       .replace(/{deviceType}/g, testData.deviceType)
@@ -226,6 +227,15 @@ const LineTemplates = () => {
         /{additionalInfo}/g,
         testData.additionalInfo ? `หมายเหตุ: ${testData.additionalInfo}\n` : ""
       );
+    
+    // สำหรับ appointment-change template
+    if (selectedStatus === 'appointment-change') {
+      preview = preview
+        .replace(/{oldAppointmentDetails}/g, 'วันเวลานัดรับ (เดิม): 4 มีนาคม 2569 เวลา 07:30')
+        .replace(/{newAppointmentDetails}/g, 'วันเวลานัดรับ (ใหม่): 5 มีนาคม 2569 เวลา 11:30');
+    }
+    
+    return preview;
   };
 
   return (
@@ -580,6 +590,22 @@ const LineTemplates = () => {
                   </code>
                   <span className="ml-2">
                     {isTh ? "- วันเวลานัดรับเครื่อง" : "- Scheduled pickup time"}
+                  </span>
+                </div>
+                <div>
+                  <code className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {"{oldAppointmentDetails}"}
+                  </code>
+                  <span className="ml-2">
+                    {isTh ? "- วันเวลานัดรับเดิม (สำหรับเทมเพลตเปลี่ยนแปลงวันเวลานัดรับ)" : "- Old appointment details (for appointment-change template)"}
+                  </span>
+                </div>
+                <div>
+                  <code className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {"{newAppointmentDetails}"}
+                  </code>
+                  <span className="ml-2">
+                    {isTh ? "- วันเวลานัดรับใหม่ (สำหรับเทมเพลตเปลี่ยนแปลงวันเวลานัดรับ)" : "- New appointment details (for appointment-change template)"}
                   </span>
                 </div>
               </div>
