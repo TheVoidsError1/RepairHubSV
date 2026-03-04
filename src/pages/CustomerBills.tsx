@@ -262,8 +262,7 @@ const CustomerBills = () => {
                                       : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
                                   }`}
                                 >
-                                  {item.status === "completed"
-                                    {getRepairStatusDisplayLabel(item.status as any, language)}
+                                  {getRepairStatusDisplayLabel(item.status as any, language)}
                                 </span>
                               </td>
                                <td className="p-3">
