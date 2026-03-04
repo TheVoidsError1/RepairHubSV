@@ -508,10 +508,36 @@ const RepairOrderBill = () => {
     });
 
     // Use full repair data if available, otherwise use dataFromNav
+    // Extract customer name and phone from fullRepairData.customer object
+    const getCustomerName = () => {
+      if (fullRepairData?.customer) {
+        if (typeof fullRepairData.customer === 'string') {
+          return fullRepairData.customer;
+        }
+        if (fullRepairData.customer.fullName) {
+          return fullRepairData.customer.fullName;
+        }
+        if (fullRepairData.customer.firstName) {
+          const lastName = fullRepairData.customer.lastName || '';
+          return `${fullRepairData.customer.firstName} ${lastName}`.trim();
+        }
+      }
+      return dataFromNav.customer || '';
+    };
+
+    const getCustomerPhone = () => {
+      if (fullRepairData?.customer) {
+        if (typeof fullRepairData.customer === 'object' && fullRepairData.customer.phone) {
+          return fullRepairData.customer.phone;
+        }
+      }
+      return dataFromNav.phone || '';
+    };
+
     const baseData: RepairOrderData = fullRepairData ? {
       serialNumber: fullRepairData.serialNumber || dataFromNav.serialNumber,
-      customer: dataFromNav.customer,
-      phone: dataFromNav.phone,
+      customer: getCustomerName(),
+      phone: getCustomerPhone(),
       model: fullRepairData.deviceModel || fullRepairData.deviceType || dataFromNav.model,
       color: fullRepairData.deviceColor || dataFromNav.color || "",
       screenLockCode: fullRepairData.screenLockCode || dataFromNav.screenLockCode || "",
